@@ -1,6 +1,7 @@
 {
   "fb": "/dev/fb0",
   "rotate": 0,
+  "layout": "auto",
   "touch": "auto",
   "font": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
   "meteo_csv": "/opt/meteo3/meteo_log.csv",

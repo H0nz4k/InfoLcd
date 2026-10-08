@@ -1,6 +1,10 @@
 # HanzHub · Infopanel v2
 
-Dotykový informační panel pro Raspberry Pi: stručný přehled systému, Meteo a IoT, graf teploty, ovládání infrapanelu BOT IPH2 a zásuvky TP-Link Tapo P110M. Grafika navazuje na tmavý styl HanzHubu. Verze **2.0.0**.
+Dotykový informační panel pro Raspberry Pi: stručný přehled systému, Meteo a IoT, graf teploty, ovládání infrapanelu BOT IPH2 a zásuvky TP-Link Tapo P110M. Grafika navazuje na tmavý styl HanzHubu. Verze **2.1.0** podporuje samostatné rozložení **320 × 480 na výšku** a **1024 × 600 na šířku**, vhodné pro Waveshare 7inch HDMI LCD (C).
+
+![Infopanel na šířku – přehled s ukázkovými daty](docs/landscape-home.png)
+
+![Čtyři stránky na šířku – ukázková data](docs/infopanel-landscape.png)
 
 ![Čtyři stránky Infopanelu v2 – ukázková data](docs/infopanel-v2.png)
 
@@ -15,13 +19,15 @@ Obrázek vzniká přímo z vykreslovacího kódu. Čísla i průběhy v tomto n�
 | **Infrapanel** | Cílová a aktuální teplota, tlačítka − / +, zapnutí/vypnutí, dětský zámek a časovač vypnuto / 1 / 2 / 4 / 8 / 24 hodin. Rozsah cíle 0–37 °C. |
 | **Zásuvka** | Aktuální příkon, dnešní/měsíční energie, místní graf příkonu za 1 / 6 / 24 hodin a zapnutí/vypnutí. |
 
-Klepnutím na kartu v přehledu otevřeš detail. Spodní lišta je na všech stránkách a umožňuje přímé přepnutí. Po 60 sekundách nečinnosti se displej vrátí na Přehled; interval lze změnit. Aktivní dotykové plochy mají při rozlišení 320 × 480 alespoň 44 pixelů v obou směrech.
+Klepnutím na kartu v přehledu otevřeš detail. Spodní lišta je na všech stránkách a umožňuje přímé přepnutí. Po 60 sekundách nečinnosti se displej vrátí na Přehled; interval lze změnit. Aktivní dotykové plochy mají při rozlišení 320 × 480 alespoň 44 pixelů v obou směrech; v rozložení 1024 × 600 alespoň 60 pixelů. Ověřeno je i zmenšení širokého rozložení na 800 × 480, kde mají plochy alespoň 44 pixelů.
+
+Na šířku jsou **Meteo, infrapanel a zásuvka vedle sebe**, včetně malých grafů teploty a příkonu. Systémové údaje tvoří jeden spodní pás. Detail Meteo má velký graf a samostatný sloupec s měřením a baterií. Infrapanel má velký teplotní kruh a ovládání vedle něj; zásuvka měření a vypínač vedle grafu. Napětí a proud zásuvky se zobrazí, pokud je API poskytuje. Všechno se vejde na obrazovku bez posouvání.
 
 **ON je zeleně, OFF červeně, nedostupné zařízení oranžově.** OFF znamená ověřený stav vypnutí; výpadek komunikace se zobrazuje samostatně. Starší Meteo data zůstávají viditelná s upozorněním. Chybějící měření nezobrazujeme jako nulu. ON infrapanelu neznamená, že jeho topné těleso právě odebírá proud.
 
 ## Co musí na Raspberry fungovat
 
-- Linux framebuffer `/dev/fbX`, obvykle `/dev/fb0` nebo `/dev/fb1`; podporované formáty RGB565 (16 bitů) a BGRX8888 (32 bitů). Doporučené rozlišení je **320 × 480 na výšku**. Otočení lze převzít z původní služby. Větší rozlišení zachovává poměr stran, případně s okraji.
+- Linux framebuffer `/dev/fbX`, obvykle `/dev/fb0` nebo `/dev/fb1`; podporované formáty RGB565 (16 bitů) a BGRX8888 (32 bitů). Výchozí `layout: auto` vybere rozložení podle rozlišení **po započtení rotace**: širší obraz používá profil 1024 × 600, ostatní profil 320 × 480. Otočení lze převzít z původní služby. Jiná rozlišení zachovávají poměr stran vybraného profilu, případně s okraji.
 - Dotyk dostupný přes Linux input/evdev: `ABS_X/Y + BTN_TOUCH` (např. resistivní čidlo), nebo multitouch protokol B se sloty. Ovladač displeje/dotyku musí být už nainstalovaný. Instalátor nezasahuje do boot konfigurace ani SPI overlay.
 - Existující [HanzHub IoT služba](https://github.com/H0nz4k/LoT) dostupná na `http://127.0.0.1:4011/api/iot`, s již přidaným infrapanelem a zásuvkou. API lze použít i z jiného počítače v LAN.
 - Pro Meteo log `/opt/meteo3/meteo_log.csv`, řádky ve stejném formátu jako původní LCD:
@@ -66,6 +72,31 @@ sudo python3 lcd/infopanel.py --diagnose
 
 Automatický výběr dotyku funguje při právě jednom podporovaném vstupu. Při více vstupech instalace skončí s vysvětlením a původní LCD zůstane běžet. Trvalá cesta `/dev/input/by-path/…` je vhodnější než číslo `eventX`, pokud ji ovladač poskytuje.
 
+## Přechod na 7″ HDMI displej na šířku
+
+Waveshare 7inch HDMI LCD (C) má obraz přes HDMI a dotyk přes datové USB. Aplikace nadále používá framebuffer a evdev. Konfigurace a přidané IoT moduly zůstávají v existujících službách; LCD nemusí zařízení znovu párovat.
+
+Po připojení HDMI a USB nejprve aktualizuj zdrojové soubory a zjisti skutečný framebuffer a dotyk:
+
+```bash
+cd ~/InfoLcd
+git pull --ff-only
+sudo python3 lcd/infopanel.py --diagnose --fb /dev/fb0 --rotate 0
+```
+
+`/dev/fb0` je příklad pro HDMI. Pokud diagnostika ukáže jiný displej, použij odpovídající `/dev/fbX`. Pro 7″ panel očekáváme obraz 1024 × 600, logické rozlišení 1024 × 600 a rozložení `landscape`. Pokud je fyzická orientace správná, nastav `rotate: 0`; nepřebírej rotaci původního SPI LCD.
+
+Příklad pro **ověřený HDMI framebuffer `/dev/fb0`** a jediný připojený dotykový vstup:
+
+```bash
+sudo python3 install.py --fb /dev/fb0 --rotate 0 --touch auto --layout auto --check-only
+sudo python3 install.py --fb /dev/fb0 --rotate 0 --touch auto --layout auto
+```
+
+Při více dotykových zařízeních nahraď `auto` cestou USB dotyku z diagnostiky. Po změně displeje se automaticky zopakuje čtyřbodová kalibrace. Rotace otáčí obraz, volba `layout` mění rozložení; jde o dvě samostatná nastavení. Rozložení lze vynutit pomocí `--layout landscape` nebo `--layout portrait`.
+
+Instalátor nenastavuje HDMI rozlišení ani neodstraňuje staré SPI/display overlay z boot konfigurace. Pro uvolnění GPIO je po odebrání původního LCD potřeba odstranit jeho konkrétní overlay podle konfigurace daného Raspberry. Tuto změnu nelze spolehlivě odvodit pouze z typu nového displeje.
+
 ## První spuštění: kalibrace
 
 Klepni postupně na **čtyři křížky** v rozích obrazovky a vždy zvedni prst. Do dokončení kalibrace nejsou přístupná ovládací tlačítka. Kalibrace řeší prohozené osy, zrcadlení i nastavené otočení; při nepřesných bodech se zopakuje.
@@ -87,6 +118,7 @@ Nastavení je v **`/etc/hanzhub-infopanel.json`**; popisuje ho [config.example.j
 | Klíč | Výchozí hodnota / význam |
 | --- | --- |
 | `fb`, `rotate` | `/dev/fb0`, `0`; rotace 0 / 90 / 180 / 270 proti směru hodin |
+| `layout` | `auto`: výběr podle orientace obrazu po rotaci; `portrait` / `landscape` vynutí profil |
 | `touch` | `auto` nebo cesta podporovaného input zařízení |
 | `api` | `http://127.0.0.1:4011/api/iot` |
 | `panel_id`, `plug_id` | `null` pro první automatický výběr jednoho modulu daného typu; jinak explicitní ID modulu |
@@ -152,10 +184,11 @@ python3 -m venv .venv
 .venv/bin/python -m unittest discover -s tests -v
 .venv/bin/python -m compileall -q lcd install.py tests
 .venv/bin/python lcd/preview_infopanel.py
+.venv/bin/python lcd/preview_infopanel.py --layout landscape --output /tmp/infopanel-wide
 ```
 
-`evdev` při sestavení z PyPI potřebuje C překladač a Linux input hlavičky; na Raspberry je pro provoz vhodnější výše uvedený balík `python3-evdev` z apt. Testy a náhledy neodesílají příkazy skutečným zařízením a nepotřebují framebuffer. CI je spouští při push a pull requestu. Náhledy OFF/nedostupnosti/časovače jsou také v `docs/`.
+`evdev` při sestavení z PyPI potřebuje C překladač a Linux input hlavičky; na Raspberry je pro provoz vhodnější výše uvedený balík `python3-evdev` z apt. Testy a náhledy neodesílají příkazy skutečným zařízením a nepotřebují framebuffer. CI je spouští při push a pull requestu. Generátor standardně vytvoří obě orientace; `--layout portrait` / `landscape` vybere jednu. Náhledy OFF/nedostupnosti/časovače jsou také v `docs/`, široké mají prefix `landscape-`.
 
 Projekt navazuje na framebuffer a robustní Meteo parser z [LoT/lcd](https://github.com/H0nz4k/LoT/tree/main/lcd). Původní `lcd_info.py` a `infrapanel_widget.py` jsou zde kvůli společným hardwarovým funkcím a formátu logu; hlavní aplikace v2 je `lcd/infopanel.py`.
 
-**Ověření na skutečném LCD:** automatické testy ověřují vykreslování, kalibraci, dotykové události, příkazy, historii a obnovu instalace. Přesný ovladač, rozlišení, otočení a dotykové zařízení konkrétního Raspberry je nutné ověřit při nasazení pomocí diagnostiky a čtyřbodové kalibrace.
+**Ověření na skutečném LCD:** uživatel potvrdil fungující výškový panel včetně přepínání stránek a ovládání zařízení. Nové rozložení na šířku je ověřeno vykreslením a automatickými testy; na konkrétním 7″ HDMI LCD je ještě potřeba ověřit framebuffer a USB dotyk. Testy ověřují také kalibraci prohozených os ve širokém rozlišení, shodu ovládacích oblastí s obrazem a blokování příkazů při nedostupnosti nebo otevřeném dialogu. Přesný ovladač, rozlišení, otočení a dotykové zařízení Raspberry se ověřují při nasazení pomocí diagnostiky a čtyřbodové kalibrace.

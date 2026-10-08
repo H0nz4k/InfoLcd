@@ -61,8 +61,8 @@ def font(size, bold=False, path="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
 
 
 class Canvas:
-    def __init__(self, font_path):
-        self.image = Image.new("RGB", (320, 480), BG)
+    def __init__(self, font_path, size=(320,480)):
+        self.image = Image.new("RGB", size, BG)
         self.draw = ImageDraw.Draw(self.image)
         self.hits = []
         self.font_path = font_path
@@ -95,13 +95,14 @@ class Canvas:
         if active:
             self.hits.append(Hit(rect, action))
 
-    def badge(self, x_right, y, state):
+    def badge(self, x_right, y, state, size=12, height=24):
         label, color = status(state)
-        face = font(12, True, self.font_path)
+        face = font(size, True, self.font_path)
         width = math.ceil(self.draw.textlength(label, font=face)) + 18
-        self.draw.rounded_rectangle((x_right-width, y, x_right, y+24), radius=12,
+        self.draw.rounded_rectangle((x_right-width, y, x_right, y+height), radius=height//2,
                                     fill=tuple(int(v*.14) for v in color), outline=color)
-        self.text((x_right-width/2, y+12), label, 12, color, True, anchor="mm")
+        self.text((x_right-width/2, y+height/2), label, size, color, True, anchor="mm")
+        return x_right-width
 
     def icon(self, name, x, y, color):
         d = self.draw
@@ -135,7 +136,7 @@ class Canvas:
                       color, anchor="mm")
             self.hits.append(Hit(rect, ("page", name)))
 
-    def chart(self, rect, samples, color, unit):
+    def chart(self, rect, samples, color, unit, label_size=10, line_width=2):
         x0,y0,x1,y1 = rect
         points = [(number(t), number(v)) for t,v in samples]
         points = [(t,v) for t,v in points if t is not None and v is not None]
@@ -150,12 +151,13 @@ class Canvas:
         low, high = low-span*.15, high+span*.15
         if unit == "W":
             low = max(0, low)
-        left, right, top, bottom = x0+34, x1-2, y0+5, y1-20
+        widest = max(self.draw.textlength(fmt(value,1),font=font(label_size,path=self.font_path)) for value in (low,high))
+        left, right, top, bottom = x0+max(34,math.ceil(widest)+6), x1-2, y0+5, y1-label_size-10
         for i in range(3):
             yy = top+i*(bottom-top)/2
             self.draw.line((left,yy,right,yy), fill=BORDER)
-            self.text((left-6,yy), fmt(high-i*(high-low)/2, 1), 10, MUTED, anchor="rm")
-        self.text((x0, y0-12), unit, 10, MUTED)
+            self.text((left-6,yy), fmt(high-i*(high-low)/2, 1), label_size, MUTED, anchor="rm")
+        self.text((x0, y0-label_size-2), unit, label_size, MUTED)
         start, end = points[0][0], points[-1][0]
         intervals = [b[0]-a[0] for a,b in zip(points,points[1:]) if b[0]>a[0]]
         gap = max(180 if unit == "W" else 1800, statistics.median(intervals)*3)
@@ -163,15 +165,39 @@ class Canvas:
         for t,v in points:
             point = (left+(t-start)/(end-start)*(right-left), bottom-(v-low)/(high-low)*(bottom-top))
             if previous and t-previous[0] <= gap:
-                self.draw.line((previous[1],point), fill=color, width=2)
+                self.draw.line((previous[1],point), fill=color, width=line_width)
             previous = (t,point)
         different_day = datetime.fromtimestamp(start).date()!=datetime.fromtimestamp(end).date()
         for t,x,anchor in ((start,left,"la"),(end,right,"ra")):
-            self.text((x,bottom+6), datetime.fromtimestamp(t).strftime("%d.%m. %H:%M" if different_day else "%H:%M"), 10, MUTED, anchor=anchor)
+            self.text((x,bottom+6), datetime.fromtimestamp(t).strftime("%d.%m. %H:%M" if different_day else "%H:%M"), label_size, MUTED, anchor=anchor)
 
 
-def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"):
-    """Vrací bitmapu a shodné oblasti pro dotyk, se zachováním poměru stran."""
+def layout_for(size, layout="auto"):
+    if layout not in ("auto","portrait","landscape"):
+        raise ValueError("layout musí být auto, portrait nebo landscape.")
+    return ("landscape" if size[0]>size[1] else "portrait") if layout=="auto" else layout
+
+
+def fit_canvas(c, size):
+    """Shodný přepočet bitmapy a dotykových oblastí, včetně okrajů."""
+    if size==c.image.size:
+        return c.image,c.hits
+    width,height = c.image.size
+    scale = min(size[0]/width,size[1]/height)
+    target = (round(width*scale),round(height*scale))
+    x,y = (size[0]-target[0])//2,(size[1]-target[1])//2
+    image = Image.new("RGB",size,BG)
+    image.paste(c.image.resize(target,Image.Resampling.LANCZOS),(x,y))
+    sx,sy = target[0]/width,target[1]/height
+    hits = [Hit((x+h.rect[0]*sx,y+h.rect[1]*sy,x+h.rect[2]*sx,y+h.rect[3]*sy),h.action) for h in c.hits]
+    return image,hits
+
+
+def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", layout="auto"):
+    """Vrací bitmapu a dotykové oblasti; samostatný profil na výšku i šířku."""
+    if layout_for(size,layout)=="landscape":
+        from infopanel_landscape import render_landscape
+        return render_landscape(page,model,window,timer_dialog,size,font_path)
     c = Canvas(font_path)
     now = model.get("now") or datetime.now()
     heater, plug = model.get("heater") or {}, model.get("plug") or {}
@@ -279,12 +305,4 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
             x,y = 24+(i%2)*142,163+(i//2)*57
             c.button((x,y,x+130,y+49), "Vypnout" if hours==0 else str(hours)+" h", ("command","heater","timer_minutes",hours*60),active=h_active)
         c.button((24,344,296,395),"Zpět",("timer","close"))
-    if size != (320,480):
-        scale = min(size[0]/320,size[1]/480)
-        target = (round(320*scale),round(480*scale))
-        x,y = (size[0]-target[0])//2,(size[1]-target[1])//2
-        image = Image.new("RGB",size,BG)
-        image.paste(c.image.resize(target,Image.Resampling.LANCZOS),(x,y))
-        hits = [Hit((x+h.rect[0]*scale,y+h.rect[1]*scale,x+h.rect[2]*scale,y+h.rect[3]*scale),h.action) for h in c.hits]
-        return image,hits
-    return c.image,c.hits
+    return fit_canvas(c,size)

@@ -18,7 +18,7 @@ APP = Path("/opt/hanzhub-infopanel")
 CONFIG = Path("/etc/hanzhub-infopanel.json")
 UNIT = Path("/etc/systemd/system/infopanel.service")
 DATA = Path("/var/lib/hanzhub-infopanel")
-RUNTIME_FILES = ("infopanel.py","infopanel_ui.py","infopanel_data.py","infopanel_touch.py","lcd_info.py","infrapanel_widget.py")
+RUNTIME_FILES = ("infopanel.py","infopanel_ui.py","infopanel_landscape.py","infopanel_data.py","infopanel_touch.py","lcd_info.py","infrapanel_widget.py")
 
 
 def run(command, check=True):
@@ -163,6 +163,7 @@ def main():
     ap.add_argument("--legacy-service",default="lcd-info.service")
     ap.add_argument("--fb")
     ap.add_argument("--rotate",type=int)
+    ap.add_argument("--layout",choices=("auto","portrait","landscape"))
     ap.add_argument("--touch")
     ap.add_argument("--api")
     ap.add_argument("--meteo-csv")
@@ -179,7 +180,7 @@ def main():
             raise ValueError("Neplatné jméno původní LCD služby.")
         if args.diagnose:
             command = ["/usr/bin/python3",str(SOURCE/"lcd/infopanel.py"),"--diagnose"]
-            for key in ("fb","rotate","touch"):
+            for key in ("fb","rotate","touch","layout"):
                 if getattr(args,key) is not None:
                     command.extend(["--"+key,str(getattr(args,key))])
             result = run(command,False)
@@ -194,7 +195,7 @@ def main():
             if service_state(args.legacy_service)["active"] and not legacy and args.fb is None:
                 raise ValueError("Nelze převzít framebuffer běžícího LCD. Použij --fb /dev/fbX a --rotate 0/90/180/270.")
             settings = inherited_settings(legacy)
-        for key in ("fb","rotate","touch","api","meteo_csv","iface","panel_id","plug_id"):
+        for key in ("fb","rotate","touch","layout","api","meteo_csv","iface","panel_id","plug_id"):
             if getattr(args,key) is not None:
                 settings[key] = getattr(args,key)
         settings = validate_settings(settings)

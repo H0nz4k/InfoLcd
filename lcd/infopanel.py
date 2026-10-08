@@ -20,13 +20,13 @@ import psutil
 
 from infopanel_data import InfoData, finite, meteo_records
 from infopanel_touch import Calibration, TouchReader, list_touch_devices
-from infopanel_ui import BG, WHITE, GREEN, AMBER, PAGES, font, render
+from infopanel_ui import BG, WHITE, GREEN, AMBER, PAGES, font, layout_for, render
 from lcd_info import (FBIOGET_FSCREENINFO, FBIOGET_VSCREENINFO, fb_fix_screeninfo,
                       fb_var_screeninfo, fb_ioctl_struct, rgb_to_rgb565_bytes,
                       _try_parse_line, get_cpu_temp_c, get_iface_ip, get_uptime_str)
 
-VERSION = "2.0.0"
-DEFAULTS = {"fb":"/dev/fb0","rotate":0,"touch":"auto",
+VERSION = "2.1.0"
+DEFAULTS = {"fb":"/dev/fb0","rotate":0,"touch":"auto","layout":"auto",
             "font":"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "meteo_csv":"/opt/meteo3/meteo_log.csv","meteo_refresh":15,"meteo_stale":3600,
             "iface":"eth0","api":"http://127.0.0.1:4011/api/iot",
@@ -40,6 +40,7 @@ def validate_settings(settings):
     result = {**DEFAULTS,**settings}
     if type(result["rotate"]) is not int or result["rotate"] not in (0,90,180,270):
         raise ValueError("rotate musí být 0, 90, 180 nebo 270 (proti směru hodin).")
+    layout_for((320,480),result["layout"])
     for name,low,high in (("meteo_refresh",2,3600),("meteo_stale",60,86400),("iot_refresh",5,60),("idle_seconds",0,3600)):
         if not finite(result[name]) or not low<=result[name]<=high:
             raise ValueError(f"{name} musí být mezi {low} a {high}.")
@@ -76,6 +77,8 @@ def arguments(argv=None):
         kwargs = {"default":settings.get(name,value)}
         if name=="rotate":
             kwargs["type"] = int
+        elif name=="layout":
+            kwargs["choices"] = ("auto","portrait","landscape")
         elif name in ("meteo_refresh","meteo_stale","iot_refresh","idle_seconds"):
             kwargs["type"] = float
         ap.add_argument("--"+name.replace("_","-"),dest=name,**kwargs)
@@ -232,7 +235,9 @@ def check_hardware(args):
     try:
         reader = TouchReader(args.touch)
         try:
+            size = framebuffer.size[::-1] if args.rotate in (90,270) else framebuffer.size
             print(json.dumps({"framebuffer":{"path":args.fb,"size":framebuffer.size,"bpp":framebuffer.bpp,"stride":framebuffer.stride},
+                              "display":{"logical_size":size,"layout":layout_for(size,args.layout),"rotate":args.rotate},
                               "touch":reader.description},ensure_ascii=False,indent=2))
         finally:
             reader.close()
@@ -250,6 +255,8 @@ def main(argv=None):
             try:
                 fb = Framebuffer(args.fb,map_memory=False)
                 print("Framebuffer:",args.fb,fb.size,fb.bpp,"bitů, stride",fb.stride)
+                size = fb.size[::-1] if args.rotate in (90,270) else fb.size
+                print("Rozložení:",layout_for(size,args.layout),"logické rozlišení:",size,"otočení:",args.rotate)
                 fb.close()
             except (OSError,ValueError) as error:
                 print("Framebuffer:",str(error))
@@ -285,7 +292,7 @@ def main(argv=None):
         system,history = {},[]
         history_key = None
         hits = []
-        logging.info("Infopanel %s běží; %s, otočení %s; dotyk %s",VERSION,size,args.rotate,reader.description["name"])
+        logging.info("Infopanel %s běží; %s, rozložení %s, otočení %s; dotyk %s",VERSION,size,layout_for(size,args.layout),args.rotate,reader.description["name"])
         while not stopping.is_set():
             now = time.monotonic()
             taps = reader.read(.05)
@@ -334,7 +341,7 @@ def main(argv=None):
                     snapshot.update(now=datetime.now(),system=system,meteo=meteo,meteo_history=meteo_history,plug_history=history)
                     if snapshot["history_error"] and state.page=="plug" and not snapshot["message"]:
                         snapshot["message"] = "Historii příkonu nelze uložit"
-                    image,hits = render(state.page,snapshot,window,state.timer_dialog,size,args.font)
+                    image,hits = render(state.page,snapshot,window,state.timer_dialog,size,args.font,args.layout)
                 if args.rotate:
                     image = image.rotate(args.rotate,expand=True)
                 fb.write(image)
