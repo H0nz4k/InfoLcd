@@ -408,7 +408,7 @@ class InstallationTests(unittest.TestCase):
             with patch.multiple(installer,APP=app,CONFIG=config,UNIT=unit,DATA=data),patch.object(installer,"run",side_effect=run), \
                  patch.object(installer,"service_state",return_value={"active":True,"enabled":True}):
                 with self.assertRaises(RuntimeError):
-                    installer.activate(stage,dict(DEFAULTS),"lcd-info.service")
+                    installer.activate(stage,{**DEFAULTS,"data_dir":str(data)},"lcd-info.service")
             self.assertEqual((app/"original").read_text(),"old app")
             self.assertEqual(config.read_text(),"old config")
             self.assertEqual(unit.read_text(),"old unit")
