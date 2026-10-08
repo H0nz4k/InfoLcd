@@ -1,0 +1,16 @@
+{
+  "fb": "/dev/fb0",
+  "rotate": 0,
+  "touch": "auto",
+  "font": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+  "meteo_csv": "/opt/meteo3/meteo_log.csv",
+  "meteo_refresh": 15,
+  "meteo_stale": 3600,
+  "iface": "eth0",
+  "api": "http://127.0.0.1:4011/api/iot",
+  "panel_id": null,
+  "plug_id": null,
+  "iot_refresh": 5,
+  "idle_seconds": 60,
+  "data_dir": "/var/lib/hanzhub-infopanel"
+}
