@@ -97,6 +97,10 @@ Při více dotykových zařízeních nahraď `auto` cestou USB dotyku z diagnost
 
 Instalátor nenastavuje HDMI rozlišení ani neodstraňuje staré SPI/display overlay z boot konfigurace. Pro uvolnění GPIO je po odebrání původního LCD potřeba odstranit jeho konkrétní overlay podle konfigurace daného Raspberry. Tuto změnu nelze spolehlivě odvodit pouze z typu nového displeje.
 
+## Ovládání podsvícení
+
+Zapojení pro ovládání podsvícení přes relé Omron G5V-1-DC5 je popsáno v [hardwarovém návodu](docs/backlight-relay.md), včetně [schématu a součástek v PDF](docs/backlight-relay.pdf). Jde o návrh zapojení; před montáží je potřeba určit kontakty přepínače konkrétního LCD. Tato dokumentace sama nepřidává ovládání GPIO do aplikace.
+
 ## První spuštění: kalibrace
 
 Klepni postupně na **čtyři křížky** v rozích obrazovky a vždy zvedni prst. Do dokončení kalibrace nejsou přístupná ovládací tlačítka. Kalibrace řeší prohozené osy, zrcadlení i nastavené otočení; při nepřesných bodech se zopakuje.
