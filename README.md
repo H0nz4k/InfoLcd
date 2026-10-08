@@ -43,8 +43,8 @@ Infopanel kreslí přímo na LCD, **nepotřebuje Chromium ani desktop a neotvír
 ```bash
 sudo apt update
 sudo apt install -y git python3-pil python3-psutil python3-evdev fonts-dejavu-core
-git clone https://github.com/H0nz4k/InfoLcd.git ~/InfoLcd
-cd ~/InfoLcd
+sudo git clone https://github.com/H0nz4k/InfoLcd.git /opt/InfoLcd
+cd /opt/InfoLcd
 sudo python3 install.py
 ```
 
@@ -79,7 +79,7 @@ Waveshare 7inch HDMI LCD (C) má obraz přes HDMI a dotyk přes datové USB. Apl
 Po připojení HDMI a USB nejprve aktualizuj zdrojové soubory a zjisti skutečný framebuffer a dotyk:
 
 ```bash
-cd ~/InfoLcd
+cd /opt/InfoLcd
 git pull --ff-only
 sudo python3 lcd/infopanel.py --diagnose --fb /dev/fb0 --rotate 0
 ```
@@ -99,7 +99,7 @@ Instalátor nenastavuje HDMI rozlišení ani neodstraňuje staré SPI/display ov
 
 ## Ovládání podsvícení
 
-Zapojení pro ovládání podsvícení přes relé Omron G5V-1-DC5 je popsáno v [hardwarovém návodu](docs/backlight-relay.md), včetně [schématu a součástek v PDF](docs/backlight-relay.pdf). Jde o návrh zapojení; před montáží je potřeba určit kontakty přepínače konkrétního LCD. Tato dokumentace sama nepřidává ovládání GPIO do aplikace.
+Zapojení pro ovládání podsvícení přes relé Omron G5V-1-DC5 je popsáno v [hardwarovém návodu](docs/backlight-relay.md), včetně [schématu a součástek v PDF](docs/backlight-relay.pdf). Jde o návrh zapojení; před montáží je potřeba určit kontakty přepínače konkrétního LCD. Samostatné [skripty podsvícení](gpios/README.md) ovládají BCM GPIO21 (fyzický pin 40) a instalují se do `/opt/gpios`. ON znamená LOW a vypnutou cívku, OFF znamená HIGH a buzenou cívku; používáme NC kontakt relé. Do obrazovky Infopanelu tyto skripty zatím nejsou připojené.
 
 ## První spuštění: kalibrace
 
@@ -163,7 +163,7 @@ sudo journalctl -u infopanel.service -f
 Aktualizace pouze LCD, bez přestavby IoT Dockeru:
 
 ```bash
-cd ~/InfoLcd
+cd /opt/InfoLcd
 sh update.sh
 ```
 

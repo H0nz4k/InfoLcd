@@ -4,6 +4,8 @@ Návrh pro HanzHub s 40pinovým konektorem Raspberry Pi a relé **Omron G5V-1-DC
 
 [Schéma a součástky v PDF](backlight-relay.pdf)
 
+**Ovládací skripty používají GPIO21:** [instalace a použití](../gpios/README.md). V následujícím původním schématu je GPIO17 jako příklad. Pro nové skripty připoj R1 na **fyzický pin 40 / BCM21** místo pinu 11 / BCM17; ostatní zapojení a logika NC zůstávají stejné.
+
 ![Schéma ovládání podsvícení](backlight-relay.png)
 
 ## Princip
