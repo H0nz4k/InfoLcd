@@ -21,6 +21,14 @@ Názvy ON/OFF označují **podsvícení**, nikoli buzení cívky. Platí pro na�
 Skripty nečtou stav LCD a potvrzení příkazu neznamená, že bylo ověřeno fyzické rozsvícení.
 Původní PDF kreslí GPIO17 jako příklad: pro tyto skripty zapoj R1 na pin 40 (GPIO21) místo pinu 11 (GPIO17).
 
+## Současná aplikace (od 2.5.0)
+
+Infopanel již ovládá GPIO21 přímo přes libgpiod a drží jej po dobu běhu.
+Klepnutí na hodiny zhasne, první platné klepnutí na LCD probudí.
+**Před ručním použitím těchto pinctrl skriptů zastav `infopanel.service`.**
+Pinctrl obchází kernelovou rezervaci GPIO, takže jeho souběžné použití může
+rozbít logiku probouzení. Pro haptiku na GPIO20 viz [zapojení](../docs/haptics.md).
+
 ## Instalace do /opt/gpios
 
 Na HUBu:
@@ -43,6 +51,9 @@ Instalace pouze kopíruje skripty; neovládá GPIO, nemění službu Infopanelu 
 python3 /opt/gpios/podsviceni_on.py --dry-run
 python3 /opt/gpios/podsviceni_off.py --dry-run
 
+# Před ručním ovládáním zastavit aplikaci:
+sudo systemctl stop infopanel.service
+
 # Zapnout podsvícení:
 sudo python3 /opt/gpios/podsviceni_on.py
 
@@ -51,6 +62,9 @@ sudo python3 /opt/gpios/podsvicedi_off.py
 
 # Přečíst režim a elektrickou úroveň GPIO:
 sudo pinctrl get 21
+
+# Obnovit aplikaci (začíná s podsvícením ON):
+sudo systemctl start infopanel.service
 ```
 
 Opakovaný stejný příkaz nastaví stejnou úroveň. Skripty nepřidávají pulzy, PWM ani cleanup.

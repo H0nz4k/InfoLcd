@@ -18,7 +18,7 @@ APP = Path("/opt/hanzhub-infopanel")
 CONFIG = Path("/etc/hanzhub-infopanel.json")
 UNIT = Path("/etc/systemd/system/infopanel.service")
 DATA = Path("/var/lib/hanzhub-infopanel")
-RUNTIME_FILES = ("infopanel.py","infopanel_ui.py","infopanel_landscape.py","infopanel_data.py","infopanel_system.py","infopanel_touch.py","lcd_info.py","infrapanel_widget.py")
+RUNTIME_FILES = ("infopanel.py","infopanel_ui.py","infopanel_landscape.py","infopanel_data.py","infopanel_system.py","infopanel_touch.py","infopanel_gpio.py","lcd_info.py","infrapanel_widget.py")
 
 
 def run(command, check=True):
@@ -212,6 +212,8 @@ def main():
         staged_config.chmod(0o600)
         result = run(["/usr/bin/python3",str(stage/"lcd/infopanel.py"),"--config",str(staged_config),"--check"])
         print(result.stdout.strip())
+        if result.stderr.strip():
+            print(result.stderr.strip(),file=sys.stderr)
         print("Nastavení:",json.dumps(settings,ensure_ascii=False,indent=2))
         if args.check_only:
             print("Kontrola prošla. Služby zůstaly beze změny.")

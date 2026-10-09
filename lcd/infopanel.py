@@ -21,6 +21,7 @@ from infopanel_data import InfoData, ServiceHealth, finite, meteo_records
 from infopanel_touch import Calibration, TouchReader, list_touch_devices
 from infopanel_ui import BG, WHITE, GREEN, AMBER, PAGES, VERSION, font, layout_for, render
 from infopanel_system import SystemMonitor
+from infopanel_gpio import TouchOutputs, gpio_probe
 from lcd_info import (FBIOGET_FSCREENINFO, FBIOGET_VSCREENINFO, fb_fix_screeninfo,
                       fb_var_screeninfo, fb_ioctl_struct, rgb_to_rgb565_bytes,
                       _try_parse_line)
@@ -32,6 +33,7 @@ DEFAULTS = {"fb":"/dev/fb0","rotate":0,"touch":"auto","layout":"auto",
             "panel_id":None,"plug_id":None,"iot_refresh":5,"idle_seconds":60,
             "home_tiles":["meteo","heater","plug"],
             "health_api":"http://127.0.0.1:4010/api/health",
+            "backlight_gpio":21,"haptic_gpio":20,"haptic_ms":50,
             "data_dir":"/var/lib/hanzhub-infopanel"}
 
 
@@ -45,6 +47,13 @@ def validate_settings(settings):
     ) or len(set(tiles))!=len(tiles):
         raise ValueError("home_tiles musí být seznam různých podporovaných dlaždic: meteo, heater, plug.")
     result["home_tiles"] = list(tiles)
+    for name in ("backlight_gpio","haptic_gpio"):
+        if result[name] is not None and (type(result[name]) is not int or not 0<=result[name]<=27):
+            raise ValueError(f"{name} musí být BCM číslo 0–27 nebo null pro vypnutí.")
+    if result["backlight_gpio"] is not None and result["backlight_gpio"]==result["haptic_gpio"]:
+        raise ValueError("Podsvícení a haptika musí mít různé GPIO.")
+    if type(result["haptic_ms"]) is not int or not 10<=result["haptic_ms"]<=150:
+        raise ValueError("haptic_ms musí být celé číslo 10–150 ms.")
     health = urlsplit(result["health_api"]) if isinstance(result["health_api"],str) else None
     if not health or health.scheme not in ("http","https") or not health.hostname or health.username or health.password or health.query or health.fragment or health.path!="/api/health":
         raise ValueError("health_api musí být URL dashboardu zakončené /api/health.")
@@ -89,8 +98,10 @@ def arguments(argv=None):
             kwargs["type"] = int
         elif name=="layout":
             kwargs["choices"] = ("auto","portrait","landscape")
-        elif name=="home_tiles":
+        elif name in ("home_tiles","backlight_gpio","haptic_gpio"):
             kwargs["type"] = json.loads
+        elif name=="haptic_ms":
+            kwargs["type"] = int
         elif name in ("meteo_refresh","meteo_stale","iot_refresh","idle_seconds"):
             kwargs["type"] = float
         ap.add_argument("--"+name.replace("_","-"),dest=name,**kwargs)
@@ -181,7 +192,8 @@ class Weather:
 
 
 class ScreenState:
-    def __init__(self, idle_seconds=60):
+    def __init__(self, idle_seconds=60, outputs=None):
+        self.outputs = outputs
         self.page = "home"
         self.services_page = 0
         self.window = {"meteo":24,"plug":24}
@@ -203,6 +215,8 @@ class ScreenState:
         pending = self.temperature
         current = pending["value"] if pending and pending["id"]==module_id else target
         value = max(0,min(37,current+delta))
+        if value==current:
+            return False
         self.temperature = {"id":module_id,"value":value,"due":now+2} if value!=target else None
         return True
 
@@ -249,11 +263,18 @@ class ScreenState:
             return False
         x,y = calibration.point(tap.x,tap.y)
         start = calibration.point(tap.start_x,tap.start_y)
+        self.last_touch = time.monotonic()
+        # The first valid touch wakes a dark LCD without issuing any hidden command.
+        if self.outputs and not self.outputs.backlight_on:
+            accepted = self.outputs.set_backlight(True)
+            if accepted:
+                self.outputs.pulse()
+            return accepted
         for hit in reversed(hits):
             # Lehký pohyb je možný, přesun mezi tlačítky nedá příkaz.
             if hit.contains(x,y) and hit.contains(*start):
                 action = hit.action
-                self.last_touch = time.monotonic()
+                accepted = True
                 if action[0]=="page" and action[1] in PAGES+("system",):
                     self.page,self.timer_dialog = action[1],False
                     self.services_page = 0
@@ -264,13 +285,21 @@ class ScreenState:
                 elif action[0]=="timer":
                     self.timer_dialog = action[1]=="open"
                 elif action[0]=="temperature":
-                    self.queue_temperature(action[1],data)
+                    accepted = self.queue_temperature(action[1],data)
                 elif action[0]=="command":
-                    self.temperature = None
-                    if data.submit(*action[1:]):
+                    accepted = data.submit(*action[1:])
+                    if accepted:
+                        self.temperature = None
                         self.timer_dialog = False
-                return True
-        self.last_touch = time.monotonic()
+                elif action[0]=="backlight":
+                    accepted = bool(self.outputs and self.outputs.set_backlight(not self.outputs.backlight_on))
+                    if not accepted:
+                        self.notice,self.notice_until = "Podsvícení nelze přepnout · zkontroluj GPIO a log",time.monotonic()+8
+                else:
+                    accepted = False
+                if accepted and self.outputs:
+                    self.outputs.pulse()
+                return accepted
         return False
 
     def idle(self, busy=False, now=None):
@@ -319,6 +348,13 @@ def check_hardware(args):
     finally:
         framebuffer.close()
     font(14,path=args.font)
+    # Discovery only: --check must not claim GPIO or alter a running output.
+    for bcm in (args.backlight_gpio,args.haptic_gpio):
+        if bcm is not None:
+            try:
+                logging.info("GPIO kontrola (bez zápisu): %s",gpio_probe(bcm))
+            except (OSError,ValueError) as error:
+                logging.warning("Volitelné GPIO%s: %s",bcm,error)
 
 
 def main(argv=None):
@@ -348,7 +384,7 @@ def main(argv=None):
     stopping = threading.Event()
     for sig in (signal.SIGTERM,signal.SIGINT):
         signal.signal(sig,lambda *_:stopping.set())
-    fb = reader = data = weather = services = monitor = None
+    fb = reader = data = weather = services = monitor = outputs = None
     try:
         fb = Framebuffer(args.fb)
         size = fb.size[::-1] if args.rotate in (90,270) else fb.size
@@ -358,7 +394,8 @@ def main(argv=None):
         calibration_path = directory/"touch-calibration.json"
         calibration = None if args.calibrate else Calibration.load(calibration_path,reader.description,size,args.rotate)
         raw_points,error = [],""
-        state = ScreenState(args.idle_seconds)
+        outputs = TouchOutputs(args.backlight_gpio,args.haptic_gpio,args.haptic_ms)
+        state = ScreenState(args.idle_seconds,outputs)
         data = InfoData(args.api,directory,args.panel_id,args.plug_id,args.iot_refresh)
         weather = Weather(args.meteo_csv,args.meteo_refresh,args.meteo_stale)
         services = ServiceHealth(args.health_api)
@@ -381,6 +418,7 @@ def main(argv=None):
                     if tap.moved or not .025<=tap.duration<=3:
                         continue
                     raw_points.append((tap.x,tap.y))
+                    outputs.pulse()
                     if len(raw_points)==4:
                         try:
                             calibration = Calibration.fit(reader.description["ranges"],size,raw_points,calibration_targets(size))
@@ -415,7 +453,8 @@ def main(argv=None):
                         except (OSError,sqlite3.Error):
                             history = []
                     snapshot.update(now=datetime.now(),system=monitor.snapshot(),meteo=meteo,meteo_history=meteo_history,plug_history=history,
-                                    services=services.snapshot(),home_tiles=args.home_tiles,services_page=state.services_page)
+                                    services=services.snapshot(),home_tiles=args.home_tiles,services_page=state.services_page,
+                                    backlight_control=outputs.backlight_available)
                     if snapshot["history_error"] and state.page=="plug" and not snapshot["message"]:
                         snapshot["message"] = "Historii příkonu nelze uložit"
                     image,hits = render(state.page,snapshot,window,state.timer_dialog,size,args.font,args.layout)
@@ -426,7 +465,7 @@ def main(argv=None):
         logging.exception("Infopanel zastaven: %s",error)
         return 1
     finally:
-        for resource in (monitor,services,weather,data,reader,fb):
+        for resource in (outputs,monitor,services,weather,data,reader,fb):
             if resource is not None:
                 resource.close()
     return 0

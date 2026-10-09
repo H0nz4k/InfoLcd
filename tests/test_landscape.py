@@ -84,7 +84,7 @@ class LandscapeTests(unittest.TestCase):
                 _,hits = render(page,{**demo_model(),**change},size=(1024,600))
                 self.assertFalse(any(hit.action[0] in ("command","timer","temperature") for hit in hits))
             _,hits = render("heater",{**demo_model(),**change},size=(1024,600),timer_dialog=True)
-            self.assertEqual([hit.action for hit in hits],[("page","home"),("timer","close")])
+        self.assertEqual([hit.action for hit in hits],[("page","home"),("backlight",),("timer","close")])
 
     def test_temperature_bounds_and_missing_values(self):
         for target,expected in ((0,1),(37,-1)):

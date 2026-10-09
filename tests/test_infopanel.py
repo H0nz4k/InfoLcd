@@ -169,7 +169,7 @@ class InteractionTests(unittest.TestCase):
             self.assertEqual(render(page,model)[0].size,(320,480))
         _,hits = render("heater",demo_model(),timer_dialog=True)
         self.assertEqual([hit.action for hit in hits if hit.action[0]=="page"],[("page","home")])
-        self.assertEqual(len(hits),8)
+        self.assertEqual(len(hits),9)  # Logo, clock, six timer choices and cancel.
 
 
 class HistoryTests(unittest.TestCase):

@@ -195,7 +195,7 @@ def plug_page(c, model, window):
 
 
 def timer_modal(c, model):
-    c.hits[:] = [hit for hit in c.hits if hit.action==("page","home")]
+    c.hits[:] = [hit for hit in c.hits if hit.action in (("page","home"),("backlight",))]
     c.image = Image.blend(c.image,Image.new("RGB",SIZE,BG),.75)
     c.draw = ImageDraw.Draw(c.image)
     c.card((232,122,792,468))
@@ -309,6 +309,8 @@ def render_landscape(page, model, window, timer_dialog, size, font_path):
     brand(c,page)
     c.text((816,15),now.strftime("%H:%M:%S"),27,WHITE,anchor="ra")
     c.text((1004,15),now.strftime("%d.%m.%Y"),27,WHITE,anchor="ra")
+    if model.get("backlight_control",True):
+        c.hits.append(Hit((640,0,1004,64),("backlight",)))
     message = model.get("message")
     if page!="home" and message:
         c.text((20,54),message,16,AMBER,width=984)
@@ -320,4 +322,6 @@ def render_landscape(page, model, window, timer_dialog, size, font_path):
     if timer_dialog:
         timer_modal(c,model)
         brand(c,page,with_hit=False)
+        c.text((816,15),now.strftime("%H:%M:%S"),27,WHITE,anchor="ra")
+        c.text((1004,15),now.strftime("%d.%m.%Y"),27,WHITE,anchor="ra")
     return fit_canvas(c,size)

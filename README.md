@@ -1,6 +1,6 @@
 # HanzHub · Infopanel v2
 
-Dotykový informační panel pro Raspberry Pi: stručný přehled systému, Meteo a IoT, graf teploty, ovládání infrapanelu BOT IPH2 a zásuvky TP-Link Tapo P110M. Grafika navazuje na tmavý styl HanzHubu. Verze **2.4.0** podporuje samostatné rozložení **320 × 480 na výšku** a **1024 × 600 na šířku**, vhodné pro Waveshare 7inch HDMI LCD (C).
+Dotykový informační panel pro Raspberry Pi: stručný přehled systému, Meteo a IoT, graf teploty, ovládání infrapanelu BOT IPH2 a zásuvky TP-Link Tapo P110M. Grafika navazuje na tmavý styl HanzHubu. Verze **2.5.0** podporuje samostatné rozložení **320 × 480 na výšku** a **1024 × 600 na šířku**, vhodné pro Waveshare 7inch HDMI LCD (C).
 
 ![Infopanel na šířku – přehled s ukázkovými daty](docs/landscape-home.png)
 
@@ -16,13 +16,13 @@ Obrázek vzniká přímo z vykreslovacího kódu. Čísla i průběhy v tomto n�
 
 | Stránka | Zobrazení a ovládání |
 | --- | --- |
-| **Hlavní stránka na šířku** | Větší HanzHub s malou verzí v2.4, čas a datum, CPU, RAM, disk, teplota Raspberry, uptime, online/celkové monitorované IoT a dostupné/celkové služby dashboardu. IP je pouze v rozšířeném přehledu. Varování při problému a stáří posledního Meteo měření. Jednoduché dlaždice Meteo (teplota/baterie), infrapanelu (cílová teplota/ON či OFF) a zásuvky (příkon/ON či OFF). |
+| **Hlavní stránka na šířku** | Větší HanzHub s malou verzí v2.5, čas a datum, CPU, RAM, disk, teplota Raspberry, uptime, online/celkové monitorované IoT a dostupné/celkové služby dashboardu. IP je pouze v rozšířeném přehledu. Varování při problému a stáří posledního Meteo měření. Jednoduché dlaždice Meteo (teplota/baterie), infrapanelu (cílová teplota/ON či OFF) a zásuvky (příkon/ON či OFF). |
 | **Meteo** | Teplota, baterie, čas i stáří posledního měření a graf za 1 / 6 / 24 hodin; minimum a maximum. |
 | **Infrapanel** | Cílová a aktuální teplota, tlačítka − / +, zapnutí/vypnutí, dětský zámek a časovač vypnuto / 1 / 2 / 4 / 8 / 24 hodin. Rozsah cíle 0–37 °C. |
 | **Rozšířený přehled** | Dotykem na HanzHub z hlavní obrazovky s dlaždicemi: volné místo, CPU/RAM/teplota/uptime, vybrané síťové rozhraní a IPv4, příjem/odesílání, firmware a jednotlivé služby. Delší seznam služeb lze přepínat šipkami. |
 | **Zásuvka** | Aktuální příkon, dnešní/měsíční energie, místní graf příkonu za 1 / 6 / 24 hodin a zapnutí/vypnutí. |
 
-Klepnutím na dlaždici na hlavní stránce otevřeš detail. **Klepnutí na HanzHub z hlavní stránky s dlaždicemi otevře rozšířený přehled systému a služeb. Ze všech ostatních stránek, včetně rozšířeného přehledu a časovače, HanzHub vrací na dlaždice.** Systémový pás už není tlačítko. **Na šířku není spodní navigace. Hlavička je jednotná: HanzHub, malá verze v2.4, čas a datum; bez názvu stránky a bez IP.** Původní výškový profil si ponechává spodní navigaci. Po 60 sekundách nečinnosti se displej vrátí na Přehled; interval lze změnit. Aktivní dotykové plochy mají při rozlišení 320 × 480 alespoň 44 pixelů v obou směrech; v rozložení 1024 × 600 alespoň 60 pixelů. Ověřeno je i zmenšení širokého rozložení na 800 × 480, kde mají plochy alespoň 44 pixelů.
+Klepnutím na dlaždici na hlavní stránce otevřeš detail. **Klepnutí na HanzHub z hlavní stránky s dlaždicemi otevře rozšířený přehled systému a služeb. Ze všech ostatních stránek, včetně rozšířeného přehledu a časovače, HanzHub vrací na dlaždice.** Systémový pás už není tlačítko. **Na šířku není spodní navigace. Hlavička je jednotná: HanzHub, malá verze v2.5, čas a datum; bez názvu stránky a bez IP.** Původní výškový profil si ponechává spodní navigaci. Po 60 sekundách nečinnosti se displej vrátí na Přehled; interval lze změnit. Aktivní dotykové plochy mají při rozlišení 320 × 480 alespoň 44 pixelů v obou směrech; v rozložení 1024 × 600 alespoň 60 pixelů. Ověřeno je i zmenšení širokého rozložení na 800 × 480, kde mají plochy alespoň 44 pixelů.
 
 Na šířku jsou **minimalistické dlaždice v mřížce až 3 × 3**. Vlevo nahoře mají ikonku a název, vpravo sekundární údaj nebo stav, uprostřed velkou hodnotu s jednotkou. Zobrazené dlaždice a jejich pořadí vybírá `home_tiles`. Nyní jsou podporované tři typy: `meteo`, `heater`, `plug`, každý jednou. Mřížka má kapacitu devět dlaždic pro budoucí typy; další zařízení či typy tímto nevznikají a nevyplňujeme volná místa kopiemi. Systémové údaje a počet služeb jsou pod oddělovací čarou v horní části, tučně (18 px) s vysokým kontrastem. CPU, RAM, disk, teplota, uptime a dostupné služby mají pevné sloupce; IoT online je na druhém řádku spolu s případnými varováními. Číselné hodnoty i jejich jednotky mají pevné pozice, takže změna z 2 na 100 % neposune sousední údaje. HanzHub má na šířku 30 px, verze 14 px; čas i datum zachovávají 27 px. Grafy a další měření zůstávají v detailech. Detail Meteo má velký graf a samostatný sloupec s měřením a baterií. Infrapanel má velký teplotní kruh a ovládání vedle něj; zásuvka měření a vypínač vedle grafu. Napětí a proud zásuvky se zobrazí, pokud je API poskytuje. Jednotlivé stránky se vejdou na obrazovku bez posouvání; seznam více než osmi služeb v detailu Raspberry používá šipky (ve výškovém profilu po čtyřech).
 
@@ -32,7 +32,7 @@ Na šířku jsou **minimalistické dlaždice v mřížce až 3 × 3**. Vlevo nah
 
 Aplikace po startu a po návratu z nečinnosti otevírá **hlavní stránku s dlaždicemi**. Rozšířený přehled systému a služeb je další obrazovka. HanzHub na hlavní stránce ho otevře; z každého detailu vrací na dlaždice. Klikací je i oblast s malou verzí vedle loga. Názvy Meteo/Infrapanel/Zásuvka/Raspberry zůstávají jen uvnitř obsahu, v hlavičce se neopakují. IP je dostupná v síťové části rozšířeného přehledu, hlavní stránka ji nezobrazuje. Výškový profil má také jednotné logo/verzi a stejný princip přepínání přes HanzHub.
 
-Plná verze aplikace je **2.4.0** (CLI `--version`, logy a náhledy); hlavička z ní automaticky používá krátký tvar **v2.4**. Odložené odeslání teploty po 2 s bez dalšího klepnutí zůstává zachované i při navigaci.
+Plná verze aplikace je **2.5.0** (CLI `--version`, logy a náhledy); hlavička z ní automaticky používá krátký tvar **v2.5**. Odložené odeslání teploty po 2 s bez dalšího klepnutí zůstává zachované i při navigaci.
 
 ## Rozšířený přehled a varování (od 2.3.0)
 
@@ -63,7 +63,7 @@ Infopanel kreslí přímo na LCD, **nepotřebuje Chromium ani desktop a neotvír
 
 ```bash
 sudo apt update
-sudo apt install -y git python3-pil python3-psutil python3-evdev fonts-dejavu-core
+sudo apt install -y git python3-pil python3-psutil python3-evdev python3-libgpiod fonts-dejavu-core
 sudo git clone https://github.com/H0nz4k/InfoLcd.git /opt/InfoLcd
 cd /opt/InfoLcd
 sudo python3 install.py
@@ -122,7 +122,52 @@ Instalátor nenastavuje HDMI rozlišení ani neodstraňuje staré SPI/display ov
 
 ## Ovládání podsvícení
 
-Zapojení pro ovládání podsvícení přes relé Omron G5V-1-DC5 je popsáno v [hardwarovém návodu](docs/backlight-relay.md), včetně [schématu a součástek v PDF](docs/backlight-relay.pdf). Jde o návrh zapojení; před montáží je potřeba určit kontakty přepínače konkrétního LCD. Samostatné [skripty podsvícení](gpios/README.md) ovládají BCM GPIO21 (fyzický pin 40) a instalují se do `/opt/gpios`. ON znamená LOW a vypnutou cívku, OFF znamená HIGH a buzenou cívku; používáme NC kontakt relé. Do obrazovky Infopanelu tyto skripty zatím nejsou připojené.
+Zapojení pro ovládání podsvícení přes relé Omron G5V-1-DC5 je popsáno v [hardwarovém návodu](docs/backlight-relay.md), včetně [schématu a součástek v PDF](docs/backlight-relay.pdf). Jde o návrh zapojení; před montáží je potřeba určit kontakty přepínače konkrétního LCD. Samostatné [skripty podsvícení](gpios/README.md) ovládají BCM GPIO21 (fyzický pin 40) a instalují se do `/opt/gpios`. ON znamená LOW a vypnutou cívku, OFF znamená HIGH a buzenou cívku; používáme NC kontakt relé. Od verze 2.5.0 podsvícení ovládá aplikace přímo přes libgpiod: klepnutí na čas/datum vpravo nahoře zhasne. První platné klepnutí kamkoliv znovu rozsvítí a neprovede žádný skrytý příkaz. Funguje na všech stránkách i v dialogu časovače. USB napájení a dotyk LCD zůstávají připojené; relé přepíná pouze kontakty podsvícení. Aplikace začne s GPIO21 LOW (podsvícení ON) a při běžném ukončení vrací výstup do LOW. Stav je poslední úspěšný zápis GPIO, nikoli měření skutečného světla. **Samostatné skripty pinctrl používej pouze se zastaveným infopanel.service**, jinak mohou obejít kernelovou rezervaci a rozhodit stav aplikace.
+
+## Podsvícení a haptická odezva (2.5.0)
+
+**GPIO21 = podsvícení, GPIO20 = vibrační motůrek. Čísla jsou BCM: fyzické piny 40 a 38.**
+Motůrek ovládej přes tranzistor/MOSFET nebo vhodný budič, s ochrannou diodou a společnou zemí.
+Napájení motůrku musí odpovídat jeho jmenovitému napětí; na GPIO se připojuje pouze řídicí vstup.
+Podrobné propojení a součástky jsou v [návodu pro haptiku](docs/haptics.md).
+
+Při **přijatém klepnutí na aktivní ovládací prvek** krátce zavibruje (výchozí 50 ms).
+Platí i pro navigaci, změnu období grafu, +/− a kalibrační body. Klepnutí do prázdna,
+přetažení prstu, nepřijatý příkaz nebo nedostupné ovládání nevibrují. Odezva potvrzuje
+přijetí klepnutí aplikací, **nikoli úspěšné vykonání vzdáleného IoT příkazu**.
+Motůrek obsluhuje samostatné vlákno; rychlá klepnutí neprodlužují rozběhnutý pulz,
+mezi pulzy je 30 ms pauza a může čekat nejvýše jeden další pulz. Nemůže vzniknout dlouhá fronta vibrací.
+Při běžném ukončení se motor vypne. Externí odpor stahující řídicí vstup k zemi je nutný i pro stav při bootu či pádu procesu.
+
+Na současném Debianu Trixie doplň závislost a aktualizuj:
+
+```bash
+sudo apt update
+sudo apt install -y python3-libgpiod
+cd /opt/InfoLcd
+sudo sh update.sh
+sudo journalctl -u infopanel.service -n 30 --no-pager
+```
+
+Pro provoz potřebujeme **libgpiod 2.x**. GPIO se vyhledají podle konektoru Raspberry a názvů linek;
+číslo `/dev/gpiochipN` nemusí být stejné na všech jádrech. Aplikace drží linky po celou dobu běhu,
+a pokud je již používá jiný ovladač, nevynucuje jejich přenastavení. GPIO20/21 nesmějí být současně
+použité například pro I²S/PCM či SPI1. Instalátor boot konfiguraci nemění.
+Chybějící knihovna, GPIO nebo obsazená linka se vypíše do logu, zbytek panelu dál funguje.
+Podsvícení a motor jsou nezávislé: chyba jednoho nevypne druhý. Bez dostupného výstupu podsvícení hodiny nefungují jako vypínač.
+Kontrola `--check` / `--check-only` pouze čte informace o GPIO, nemění úroveň ani nevibruje.
+
+Nastavení v `/etc/hanzhub-infopanel.json` (instalátor je doplní při aktualizaci):
+
+```json
+"backlight_gpio": 21,
+"haptic_gpio": 20,
+"haptic_ms": 50
+```
+
+Každý GPIO lze vypnout hodnotou `null`, například `"haptic_gpio": null`, než bude motůrek připravený.
+Povolená délka pulzu je 10–150 ms. Změnu konfigurace načte `sudo systemctl restart infopanel.service`.
+Tato verze nemá automatické zhasínání ani uložený stav OFF po restartu; návrat na dlaždice po nečinnosti nezhasíná.
 
 ## První spuštění: kalibrace
 
@@ -223,4 +268,6 @@ python3 -m venv .venv
 
 Projekt navazuje na framebuffer a robustní Meteo parser z [LoT/lcd](https://github.com/H0nz4k/LoT/tree/main/lcd). Původní `lcd_info.py` a `infrapanel_widget.py` jsou zde kvůli společným hardwarovým funkcím a formátu logu; hlavní aplikace v2 je `lcd/infopanel.py`.
 
-**Ověření na skutečném LCD:** uživatel potvrdil fungující výškový panel včetně přepínání stránek a ovládání zařízení. Uživatel také potvrdil obraz i dotykové přepínání stránek na 7″ HDMI LCD 1024 × 600. Dlaždice a odložený zápis verze 2.2.0 jsou ověřeny v náhledech a automatických testech; ověření této aktualizace na fyzickém LCD proběhne po instalaci. Sada 66 testů zahrnuje rychlou sérii klepnutí s jedním odloženým zápisem, návrat na původní cíl bez zápisu, zrušení při nedostupnosti a změně modulu, návrat přes HanzHub i z dialogu a počty služeb při výpadku health API. Testy ověřují také kalibraci prohozených os ve širokém rozlišení, shodu ovládacích oblastí s obrazem a blokování příkazů při nedostupnosti nebo otevřeném dialogu. Verze 2.3.0 přidává testy první síťové rychlosti, resetu čítačů, odpojení rozhraní, stáří dat, chybějícího firmware, aktuálních/historických příznaků, online počtů i při OFF a dotykové navigace/stránkování systémového detailu. Verze 2.4.0 navíc ověřuje jednotnou hlavičku na všech stránkách, nezobrazení IP na hlavní stránce, nové přepínání přes HanzHub a pevné sloupce při změnách čísel na tříciferné hodnoty. Změny 2.3.0 a 2.4.0 zatím nebyly ověřeny na fyzickém HUBu. Přesný ovladač, rozlišení, otočení a dotykové zařízení Raspberry se ověřují při nasazení pomocí diagnostiky a čtyřbodové kalibrace.
+**Ověření na skutečném LCD:** uživatel potvrdil fungující výškový panel včetně přepínání stránek a ovládání zařízení. Uživatel také potvrdil obraz i dotykové přepínání stránek na 7″ HDMI LCD 1024 × 600. Dlaždice a odložený zápis verze 2.2.0 jsou ověřeny v náhledech a automatických testech; ověření této aktualizace na fyzickém LCD proběhne po instalaci. Sada 79 automatických testů zahrnuje rychlou sérii klepnutí s jedním odloženým zápisem, návrat na původní cíl bez zápisu, zrušení při nedostupnosti a změně modulu, návrat přes HanzHub i z dialogu a počty služeb při výpadku health API. Testy ověřují také kalibraci prohozených os ve širokém rozlišení, shodu ovládacích oblastí s obrazem a blokování příkazů při nedostupnosti nebo otevřeném dialogu. Verze 2.3.0 přidává testy první síťové rychlosti, resetu čítačů, odpojení rozhraní, stáří dat, chybějícího firmware, aktuálních/historických příznaků, online počtů i při OFF a dotykové navigace/stránkování systémového detailu. Verze 2.4.0 navíc ověřuje jednotnou hlavičku na všech stránkách, nezobrazení IP na hlavní stránce, nové přepínání přes HanzHub a pevné sloupce při změnách čísel na tříciferné hodnoty. Změny 2.3.0 a 2.4.0 zatím nebyly ověřeny na fyzickém HUBu. Přesný ovladač, rozlišení, otočení a dotykové zařízení Raspberry se ověřují při nasazení pomocí diagnostiky a čtyřbodové kalibrace.
+
+**Ověření verze 2.5.0:** testy ověřují klikací hodiny ve všech rozloženích i časovači, první klepnutí pouze pro probuzení, odmítnuté klepnutí bez vibrace, nepřekrývající se logo a hodiny, nezávislost obou výstupů při chybě, počáteční LOW a rezervaci GPIO, omezenou frontu pulzů a ukončení motůrku během pulzu. Fyzické přepínání relé a motůrku bude potřeba ověřit na HUBu po dokončení zapojení.

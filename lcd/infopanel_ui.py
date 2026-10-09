@@ -17,7 +17,7 @@ GREEN = (43, 213, 146)
 RED = (255, 100, 108)
 AMBER = (255, 173, 65)
 BLUE = (75, 194, 255)
-VERSION = "2.4.0"
+VERSION = "2.5.0"
 HEADER_VERSION = "v"+".".join(VERSION.split(".")[:2])
 PAGES = ("home", "meteo", "heater", "plug")
 TITLES = {"home": "HanzHub", "meteo": "Meteo", "heater": "Infrapanel", "plug": "Zásuvka", "system": "Raspberry"}
@@ -208,6 +208,8 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
     c.text((165,17), HEADER_VERSION, 12, MUTED)
     c.hits.append(Hit((8,0,210,50),("page","system" if page=="home" else "home")))
     c.text((308,12), now.strftime("%H:%M:%S"), 16, WHITE, anchor="ra")
+    if model.get("backlight_control",True):
+        c.hits.append(Hit((212,0,312,50),("backlight",)))
     message = model.get("message")
     if message:
         c.text((12,36), message, 11, AMBER, width=296)
@@ -328,7 +330,7 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
                  active=p_active,color=GREEN if plug.get("power") else RED)
     c.nav(page)
     if timer_dialog:
-        c.hits[:] = [hit for hit in c.hits if hit.action==("page","home") and hit.rect[3]<=50]
+        c.hits[:] = [hit for hit in c.hits if hit.rect[3]<=50 and hit.action in (("page","home"),("backlight",))]
         shade = Image.new("RGB",c.image.size,BG)
         c.image = Image.blend(c.image,shade,.75)
         c.draw = ImageDraw.Draw(c.image)
@@ -340,4 +342,5 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
         c.button((24,344,296,395),"Zpět",("timer","close"))
         c.text((12,6), "HanzHub", 24, GREEN, True)
         c.text((165,17), HEADER_VERSION, 12, MUTED)
+        c.text((308,12), now.strftime("%H:%M:%S"), 16, WHITE, anchor="ra")
     return fit_canvas(c,size)

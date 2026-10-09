@@ -19,5 +19,8 @@
     "heater",
     "plug"
   ],
-  "health_api": "http://127.0.0.1:4010/api/health"
+  "health_api": "http://127.0.0.1:4010/api/health",
+  "backlight_gpio": 21,
+  "haptic_gpio": 20,
+  "haptic_ms": 50
 }
