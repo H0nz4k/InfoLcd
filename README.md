@@ -1,6 +1,6 @@
 # HanzHub · Infopanel v2
 
-Dotykový informační panel pro Raspberry Pi: stručný přehled systému, Meteo a IoT, graf teploty, ovládání infrapanelu BOT IPH2 a zásuvky TP-Link Tapo P110M. Grafika navazuje na tmavý styl HanzHubu. Verze **2.1.1** podporuje samostatné rozložení **320 × 480 na výšku** a **1024 × 600 na šířku**, vhodné pro Waveshare 7inch HDMI LCD (C).
+Dotykový informační panel pro Raspberry Pi: stručný přehled systému, Meteo a IoT, graf teploty, ovládání infrapanelu BOT IPH2 a zásuvky TP-Link Tapo P110M. Grafika navazuje na tmavý styl HanzHubu. Verze **2.2.0** podporuje samostatné rozložení **320 × 480 na výšku** a **1024 × 600 na šířku**, vhodné pro Waveshare 7inch HDMI LCD (C).
 
 ![Infopanel na šířku – přehled s ukázkovými daty](docs/landscape-home.png)
 
@@ -14,22 +14,23 @@ Obrázek vzniká přímo z vykreslovacího kódu. Čísla i průběhy v tomto n�
 
 | Stránka | Zobrazení a ovládání |
 | --- | --- |
-| **Přehled** | Hodiny, IP, teplota Meteo a baterie; infrapanel ON/OFF a při ON aktuální/cílová teplota; příkon a dnešní spotřeba zásuvky. CPU, RAM, disk, teplota Raspberry a uptime ve spodním pásu. |
+| **Hlavní stránka na šířku** | HanzHub jako tlačítko domů, čas a datum, IP, CPU, RAM, disk, teplota Raspberry, uptime a dostupné/celkové služby dashboardu. Jednoduché dlaždice Meteo (teplota/baterie), infrapanelu (cílová teplota/ON či OFF) a zásuvky (příkon/ON či OFF). |
 | **Meteo** | Teplota, baterie, čas posledního měření a graf za 1 / 6 / 24 hodin; minimum a maximum. |
 | **Infrapanel** | Cílová a aktuální teplota, tlačítka − / +, zapnutí/vypnutí, dětský zámek a časovač vypnuto / 1 / 2 / 4 / 8 / 24 hodin. Rozsah cíle 0–37 °C. |
 | **Zásuvka** | Aktuální příkon, dnešní/měsíční energie, místní graf příkonu za 1 / 6 / 24 hodin a zapnutí/vypnutí. |
 
-Klepnutím na kartu v přehledu otevřeš detail. Spodní lišta je na všech stránkách a umožňuje přímé přepnutí. Po 60 sekundách nečinnosti se displej vrátí na Přehled; interval lze změnit. Aktivní dotykové plochy mají při rozlišení 320 × 480 alespoň 44 pixelů v obou směrech; v rozložení 1024 × 600 alespoň 60 pixelů. Ověřeno je i zmenšení širokého rozložení na 800 × 480, kde mají plochy alespoň 44 pixelů.
+Klepnutím na dlaždici na hlavní stránce otevřeš detail. **Na šířku není spodní navigace ani nadbytečný nadpis Přehled. HanzHub vlevo nahoře vždy vrací domů, i z dialogu časovače.** Původní výškový profil si ponechává spodní navigaci. Po 60 sekundách nečinnosti se displej vrátí na Přehled; interval lze změnit. Aktivní dotykové plochy mají při rozlišení 320 × 480 alespoň 44 pixelů v obou směrech; v rozložení 1024 × 600 alespoň 60 pixelů. Ověřeno je i zmenšení širokého rozložení na 800 × 480, kde mají plochy alespoň 44 pixelů.
 
-Na šířku jsou **Meteo, infrapanel a zásuvka vedle sebe**, včetně malých grafů teploty a příkonu. Systémové údaje tvoří jeden spodní pás. Detail Meteo má velký graf a samostatný sloupec s měřením a baterií. Infrapanel má velký teplotní kruh a ovládání vedle něj; zásuvka měření a vypínač vedle grafu. Napětí a proud zásuvky se zobrazí, pokud je API poskytuje. Všechno se vejde na obrazovku bez posouvání.
+Na šířku jsou **minimalistické dlaždice v mřížce až 3 × 3**. Vlevo nahoře mají ikonku a název, vpravo sekundární údaj nebo stav, uprostřed velkou hodnotu s jednotkou. Zobrazené dlaždice a jejich pořadí vybírá `home_tiles`. Nyní jsou podporované tři typy: `meteo`, `heater`, `plug`, každý jednou. Mřížka má kapacitu devět dlaždic pro budoucí typy; další zařízení či typy tímto nevznikají a nevyplňujeme volná místa kopiemi. Systémové údaje a počet služeb jsou v horní části. Grafy a další měření zůstávají v detailech. Detail Meteo má velký graf a samostatný sloupec s měřením a baterií. Infrapanel má velký teplotní kruh a ovládání vedle něj; zásuvka měření a vypínač vedle grafu. Napětí a proud zásuvky se zobrazí, pokud je API poskytuje. Všechno se vejde na obrazovku bez posouvání.
 
-**ON je zeleně, OFF červeně, nedostupné zařízení oranžově.** OFF znamená ověřený stav vypnutí; výpadek komunikace se zobrazuje samostatně. Starší Meteo data zůstávají viditelná s upozorněním. Chybějící měření nezobrazujeme jako nulu. ON infrapanelu neznamená, že jeho topné těleso právě odebírá proud.
+**ON je zeleně, OFF červeně, nedostupné zařízení oranžově.** OFF znamená ověřený stav vypnutí; výpadek komunikace se zobrazuje samostatně. Na minimalistické dlaždici znamená oranžová pomlčka nedostupný či pozastavený modul; detail stav vysvětlí. Starší Meteo teplota se na dlaždici zbarví oranžově, detail přidá upozornění. Chybějící měření nezobrazujeme jako nulu. ON infrapanelu neznamená, že jeho topné těleso právě odebírá proud.
 
 ## Co musí na Raspberry fungovat
 
 - Linux framebuffer `/dev/fbX`, obvykle `/dev/fb0` nebo `/dev/fb1`; podporované formáty RGB565 (16 bitů) a BGRX8888 (32 bitů). Výchozí `layout: auto` vybere rozložení podle rozlišení **po započtení rotace**: širší obraz používá profil 1024 × 600, ostatní profil 320 × 480. Otočení lze převzít z původní služby. Jiná rozlišení zachovávají poměr stran vybraného profilu, případně s okraji.
 - Dotyk dostupný přes Linux input/evdev: `ABS_X/Y + BTN_TOUCH` (např. resistivní čidlo), nebo multitouch protokol B se sloty. Ovladač displeje/dotyku musí být už nainstalovaný. Instalátor nezasahuje do boot konfigurace ani SPI overlay.
 - Existující [HanzHub IoT služba](https://github.com/H0nz4k/LoT) dostupná na `http://127.0.0.1:4011/api/iot`, s již přidaným infrapanelem a zásuvkou. API lze použít i z jiného počítače v LAN.
+- Pro počet služeb používáme GET `http://127.0.0.1:4010/api/health` z existujícího dashboardu. Počet znamená dostupné/celkové služby podle HTTP health kontrol, nikoli počet všech systemd jednotek. Kontrola běží na pozadí každých 30 s; při chybě nebo stáří nad 90 s ukážeme pomlčku.
 - Pro Meteo log `/opt/meteo3/meteo_log.csv`, řádky ve stejném formátu jako původní LCD:
 
 ```text
@@ -127,6 +128,8 @@ Nastavení je v **`/etc/hanzhub-infopanel.json`**; popisuje ho [config.example.j
 | `layout` | `auto`: výběr podle orientace obrazu po rotaci; `portrait` / `landscape` vynutí profil |
 | `touch` | `auto` nebo cesta podporovaného input zařízení |
 | `api` | `http://127.0.0.1:4011/api/iot` |
+| `health_api` | `http://127.0.0.1:4010/api/health`; zdroj počtu služeb dashboardu |
+| `home_tiles` | `["meteo", "heater", "plug"]`; výběr a pořadí dlaždic na šířku, bez opakování |
 | `panel_id`, `plug_id` | `null` pro první automatický výběr jednoho modulu daného typu; jinak explicitní ID modulu |
 | `meteo_csv` | `/opt/meteo3/meteo_log.csv` |
 | `meteo_refresh`, `meteo_stale` | Čtení logu každých 15 s; označení starších dat po 3600 s |
@@ -134,6 +137,8 @@ Nastavení je v **`/etc/hanzhub-infopanel.json`**; popisuje ho [config.example.j
 | `idle_seconds` | Návrat na Přehled po 60 s; `0` návrat vypne |
 | `iface` | `eth0`, lze změnit např. na `wlan0` |
 | `data_dir` | `/var/lib/hanzhub-infopanel`; kalibrace, výběr modulů a historie příkonu |
+
+Pro zobrazení jen některých dlaždic změň např. `"home_tiles": ["plug", "heater"]` v konfiguraci a restartuj `infopanel.service`. Změna seznamu nespáruje ani neodebere zařízení.
 
 Pokud máš jeden infrapanel a jednu Tapo P110M, načtou se automaticky. Vybraná **ID se uloží**, aby odebrání zařízení omylem nepřesměrovalo ovládání na jiný modul. Při více zařízeních stejného typu nastav `panel_id` / `plug_id`. Jde o **12místné ID z HanzHubu**, nikoli dlouhý Tuya Device ID. Získáš je:
 
@@ -151,6 +156,7 @@ Pro změnu `data_dir` použij znovu instalátor, aby se upravila i oprávnění 
 - Dnešní a měsíční kWh jsou údaje **ze zásuvky Tapo přes HanzHub API**. Infopanel je nepřepočítává z grafu příkonu.
 - Příkon se vzorkuje nejvýše jednou za minutu do `power-history.sqlite3`, odděleně podle ID zásuvky. Uchovává se 30 dní; graf nabízí posledních 1 / 6 / 24 hodin. Historie začíná spuštěním nové verze, nezískáváme starší placenou cloudovou historii. Výpadky se nevyplňují nulami a delší mezery v grafu se nepřemosťují.
 - Infrapanel ovládá výkonový stav, nastavenou teplotu, dětský zámek a časovač. Chybu čidla E1 zobrazuje červeně. Spotřebu infrapanelu neodhadujeme z ON/OFF.
+- **Teplota se odešle až 2 sekundy po posledním klepnutí na − / +**, jedním příkazem s posledním zvoleným cílem. V detailu se okamžitě zobrazí „Nový cíl“ a informace o čekání; potvrzený stav zařízení se tím nepřepisuje. Návrat na původní hodnotu zápis zruší. Navigace čekající změnu ponechá; jiný příkaz ji zruší, stejně jako nedostupnost, změna vybraného zařízení či rozpracovaný příkaz. Čekající změna se při restartu neobnovuje. Po odeslání platí původní čekání na potvrzení zařízení a žádné automatické opakování.
 - Zápis probíhá pouze přes `POST /api/iot/devices/{id}/command`. UI ukáže potvrzení teprve při úspěšném výsledku a odpovídajícím skutečném stavu z backendu. Časovač ověřuje backend i s ohledem na běžící odpočet. Nejistý příkaz se **automaticky neopakuje**; místo toho se znovu načte stav.
 - Síťová komunikace běží na pozadí, nezastavuje dotykové přepínání. Nedostupné, zakázané a staré stavy vypnou ovládání. Potvrzení chrání i před přepsáním opožděným starším čtením.
 
@@ -197,4 +203,4 @@ python3 -m venv .venv
 
 Projekt navazuje na framebuffer a robustní Meteo parser z [LoT/lcd](https://github.com/H0nz4k/LoT/tree/main/lcd). Původní `lcd_info.py` a `infrapanel_widget.py` jsou zde kvůli společným hardwarovým funkcím a formátu logu; hlavní aplikace v2 je `lcd/infopanel.py`.
 
-**Ověření na skutečném LCD:** uživatel potvrdil fungující výškový panel včetně přepínání stránek a ovládání zařízení. Uživatel také potvrdil obraz i dotykové přepínání stránek na 7″ HDMI LCD 1024 × 600. Zvětšené popisky verze 2.1.1 jsou ověřeny v náhledech a automatických testech; jejich čitelnost na fyzickém LCD se posoudí po aktualizaci. Testy ověřují také kalibraci prohozených os ve širokém rozlišení, shodu ovládacích oblastí s obrazem a blokování příkazů při nedostupnosti nebo otevřeném dialogu. Přesný ovladač, rozlišení, otočení a dotykové zařízení Raspberry se ověřují při nasazení pomocí diagnostiky a čtyřbodové kalibrace.
+**Ověření na skutečném LCD:** uživatel potvrdil fungující výškový panel včetně přepínání stránek a ovládání zařízení. Uživatel také potvrdil obraz i dotykové přepínání stránek na 7″ HDMI LCD 1024 × 600. Dlaždice a odložený zápis verze 2.2.0 jsou ověřeny v náhledech a automatických testech; ověření této aktualizace na fyzickém LCD proběhne po instalaci. Sada 53 testů zahrnuje rychlou sérii klepnutí s jedním odloženým zápisem, návrat na původní cíl bez zápisu, zrušení při nedostupnosti a změně modulu, návrat přes HanzHub i z dialogu a počty služeb při výpadku health API. Testy ověřují také kalibraci prohozených os ve širokém rozlišení, shodu ovládacích oblastí s obrazem a blokování příkazů při nedostupnosti nebo otevřeném dialogu. Přesný ovladač, rozlišení, otočení a dotykové zařízení Raspberry se ověřují při nasazení pomocí diagnostiky a čtyřbodové kalibrace.

@@ -34,6 +34,47 @@ def valid_state(role, state):
     return dict(state)
 
 
+class ServiceHealth:
+    """Počty služeb dashboardu; síťové čekání nikdy neblokuje dotyk."""
+    def __init__(self, url, transport=None):
+        self.url = url
+        self.transport = transport or self._request
+        self.lock, self.stop = threading.Lock(), threading.Event()
+        self.value, self.checked = None, 0
+
+    def _request(self):
+        with urlopen(self.url, timeout=25) as response:
+            return json.load(response)
+
+    def poll(self):
+        try:
+            rows = self.transport()
+            if not isinstance(rows, dict) or any(
+                not isinstance(row, dict) or type(row.get("ok")) is not bool
+                for row in rows.values()
+            ):
+                raise ValueError("Neplatný health přehled")
+            value = {"online":sum(row["ok"] for row in rows.values()), "total":len(rows)}
+        except (OSError, ValueError, TypeError):
+            value = None
+        with self.lock:
+            self.value, self.checked = value, time.monotonic()
+
+    def start(self):
+        def run():
+            while not self.stop.is_set():
+                self.poll()
+                self.stop.wait(30)
+        threading.Thread(target=run, daemon=True).start()
+
+    def snapshot(self):
+        with self.lock:
+            return dict(self.value) if self.value is not None and time.monotonic()-self.checked<90 else None
+
+    def close(self):
+        self.stop.set()
+
+
 class PowerHistory:
     def __init__(self, directory):
         directory = Path(directory)
@@ -225,7 +266,7 @@ class InfoData:
                 result[role+"_id"] = self.selected[role]
             return result
 
-    def submit(self, role, control, value):
+    def submit(self, role, control, value, expected_module_id=None):
         snapshot = self.snapshot()
         state = snapshot.get(role)
         valid = role in ("heater","plug") and isinstance(state,dict) and state.get("online") is True
@@ -241,6 +282,8 @@ class InfoData:
             if not valid or self.busy:
                 return False
             module_id = self.selected[role]
+            if expected_module_id is not None and module_id!=expected_module_id:
+                return False
             module = self.modules.get(module_id,{})
             if module.get("enabled") is not True or module.get("driver")!={"heater":"bot_iph2","plug":"tapo_p110m"}[role]:
                 return False

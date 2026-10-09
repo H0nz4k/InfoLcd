@@ -142,15 +142,15 @@ class InteractionTests(unittest.TestCase):
         for changes in ({"heater":{"online":False},"plug":{"online":False}},{"busy":True}):
             for page in ("heater","plug"):
                 _,hits = render(page,{**demo_model(),**changes})
-                self.assertFalse(any(hit.action[0] in ("command","timer") for hit in hits))
+                self.assertFalse(any(hit.action[0] in ("command","timer","temperature") for hit in hits))
 
     def test_temperature_limits_and_touch_target_sizes(self):
         model = demo_model()
         for target in (0,37):
             model["heater"]["target_temp_c"] = target
             _,hits = render("heater",model)
-            values = [hit.action[3] for hit in hits if hit.action[:3]==("command","heater","target_temp_c")]
-            self.assertEqual(values,[1] if target==0 else [36])
+            values = [hit.action[1] for hit in hits if hit.action[0]=="temperature"]
+            self.assertEqual(values,[1] if target==0 else [-1])
         for page in ("home","meteo","heater","plug"):
             _,hits = render(page,demo_model())
             for hit in hits:
@@ -245,6 +245,13 @@ class ApiTests(unittest.TestCase):
         self.assertTrue(self.data.submit("heater","target_temp_c",26))
         self.data.command_thread.join(2)
         self.assertEqual(self.data.snapshot()["heater"]["target_temp_c"],26)
+        self.assertEqual(len(self.commands),1)
+
+    def test_deferred_command_cannot_target_a_different_selected_module(self):
+        self.assertFalse(self.data.submit("heater","target_temp_c",26,expected_module_id=OTHER_ID))
+        self.assertEqual(self.commands,[])
+        self.assertTrue(self.data.submit("heater","target_temp_c",26,expected_module_id=HEATER_ID))
+        self.data.command_thread.join(2)
         self.assertEqual(len(self.commands),1)
 
     def test_wrong_confirmation_never_fakes_requested_state_or_retries(self):

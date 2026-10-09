@@ -258,19 +258,19 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
         c.badge(306,59,heater)
         c.text((14,63), model.get("heater_room", "") or "Termostat", 12, MUTED, width=170)
         c.draw.arc((75,78,245,248),135,405,fill=BORDER,width=7)
-        target = number(ht.get("target_temp_c"))
+        target = number(model.get("target_draft_c",ht.get("target_temp_c")))
         if target is not None:
             c.draw.arc((75,78,245,248),135,135+270*target/37,fill=AMBER,width=7)
-        c.text((160,125), "Cílová teplota", 12, MUTED, anchor="mm")
+        c.text((160,125), "Nový cíl" if model.get("target_draft_c") is not None else "Cílová teplota", 12, MUTED, anchor="mm")
         c.text((160,164), fmt(target,0)+("°" if target is not None else ""), 48, WHITE, True, anchor="mm")
         c.text((160,204), "Aktuálně "+fmt(ht.get("current_temp_c"),0," °C"), 15, WHITE, anchor="mm")
         c.text((160,226), "Chyba E1: čidlo" if heater.get("fault_code") else "", 11, RED, anchor="mm")
-        current_target = heater.get("target_temp_c")
+        current_target = model.get("target_draft_c",heater.get("target_temp_c"))
         can_temp = h_active and type(current_target) is int and 0<=current_target<=37
-        c.button((12,249,80,297), "−", ("command","heater","target_temp_c",current_target-1 if can_temp else 0),
+        c.button((12,249,80,297), "−", ("temperature",-1),
                  active=can_temp and current_target>0,size=28)
         c.text((160,273), "Změnit cíl", 13, MUTED, anchor="mm")
-        c.button((240,249,308,297), "+", ("command","heater","target_temp_c",current_target+1 if can_temp else 0),
+        c.button((240,249,308,297), "+", ("temperature",1),
                  active=can_temp and current_target<37,size=25)
         c.button((12,307,156,355), "Vypnout" if heater.get("power") else "Zapnout", ("command","heater","power",not heater.get("power")),
                  active=h_active,color=GREEN if heater.get("power") else RED)

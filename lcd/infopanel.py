@@ -18,19 +18,21 @@ from urllib.parse import urlsplit
 from PIL import Image, ImageDraw
 import psutil
 
-from infopanel_data import InfoData, finite, meteo_records
+from infopanel_data import InfoData, ServiceHealth, finite, meteo_records
 from infopanel_touch import Calibration, TouchReader, list_touch_devices
 from infopanel_ui import BG, WHITE, GREEN, AMBER, PAGES, font, layout_for, render
 from lcd_info import (FBIOGET_FSCREENINFO, FBIOGET_VSCREENINFO, fb_fix_screeninfo,
                       fb_var_screeninfo, fb_ioctl_struct, rgb_to_rgb565_bytes,
                       _try_parse_line, get_cpu_temp_c, get_iface_ip, get_uptime_str)
 
-VERSION = "2.1.1"
+VERSION = "2.2.0"
 DEFAULTS = {"fb":"/dev/fb0","rotate":0,"touch":"auto","layout":"auto",
             "font":"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "meteo_csv":"/opt/meteo3/meteo_log.csv","meteo_refresh":15,"meteo_stale":3600,
             "iface":"eth0","api":"http://127.0.0.1:4011/api/iot",
             "panel_id":None,"plug_id":None,"iot_refresh":5,"idle_seconds":60,
+            "home_tiles":["meteo","heater","plug"],
+            "health_api":"http://127.0.0.1:4010/api/health",
             "data_dir":"/var/lib/hanzhub-infopanel"}
 
 
@@ -38,6 +40,15 @@ def validate_settings(settings):
     if set(settings)-set(DEFAULTS):
         raise ValueError("Neznámá nastavení: "+", ".join(sorted(set(settings)-set(DEFAULTS))))
     result = {**DEFAULTS,**settings}
+    tiles = result["home_tiles"]
+    if not isinstance(tiles,list) or not 1<=len(tiles)<=9 or any(
+        not isinstance(tile,str) or tile not in ("meteo","heater","plug") for tile in tiles
+    ) or len(set(tiles))!=len(tiles):
+        raise ValueError("home_tiles musí být seznam různých podporovaných dlaždic: meteo, heater, plug.")
+    result["home_tiles"] = list(tiles)
+    health = urlsplit(result["health_api"]) if isinstance(result["health_api"],str) else None
+    if not health or health.scheme not in ("http","https") or not health.hostname or health.username or health.password or health.query or health.fragment or health.path!="/api/health":
+        raise ValueError("health_api musí být URL dashboardu zakončené /api/health.")
     if type(result["rotate"]) is not int or result["rotate"] not in (0,90,180,270):
         raise ValueError("rotate musí být 0, 90, 180 nebo 270 (proti směru hodin).")
     layout_for((320,480),result["layout"])
@@ -79,6 +90,8 @@ def arguments(argv=None):
             kwargs["type"] = int
         elif name=="layout":
             kwargs["choices"] = ("auto","portrait","landscape")
+        elif name=="home_tiles":
+            kwargs["type"] = json.loads
         elif name in ("meteo_refresh","meteo_stale","iot_refresh","idle_seconds"):
             kwargs["type"] = float
         ap.add_argument("--"+name.replace("_","-"),dest=name,**kwargs)
@@ -174,6 +187,61 @@ class ScreenState:
         self.timer_dialog = False
         self.last_touch = time.monotonic()
         self.idle_seconds = idle_seconds
+        self.temperature = None
+        self.sent_temperature = None
+        self.notice, self.notice_until = "", 0
+
+    def queue_temperature(self, delta, data, now=None):
+        now = time.monotonic() if now is None else now
+        snapshot = data.snapshot()
+        heater = snapshot.get("heater") or {}
+        target = heater.get("target_temp_c")
+        module_id = snapshot.get("heater_id")
+        if snapshot.get("busy") or heater.get("online") is not True or type(heater.get("power")) is not bool or type(target) is not int or not 0<=target<=37 or not module_id or delta not in (-1,1):
+            return False
+        pending = self.temperature
+        current = pending["value"] if pending and pending["id"]==module_id else target
+        value = max(0,min(37,current+delta))
+        self.temperature = {"id":module_id,"value":value,"due":now+2} if value!=target else None
+        return True
+
+    def tick(self, data, now=None):
+        """Jeden poslední cíl po dvou sekundách klidu; žádné opakování zápisu."""
+        now = time.monotonic() if now is None else now
+        snapshot = data.snapshot()
+        if self.sent_temperature and (not snapshot.get("busy") or snapshot.get("heater_id")!=self.sent_temperature["id"]):
+            self.sent_temperature = None
+        pending = self.temperature
+        if not pending:
+            return False
+        heater = snapshot.get("heater") or {}
+        if snapshot.get("heater_id")!=pending["id"] or heater.get("online") is not True or snapshot.get("busy"):
+            self.temperature = None
+            self.notice, self.notice_until = "Změna teploty zrušena: zařízení není připravené",now+8
+            return True
+        if now<pending["due"]:
+            return False
+        self.temperature = None
+        if heater.get("target_temp_c")==pending["value"]:
+            return True
+        if data.submit("heater","target_temp_c",pending["value"],expected_module_id=pending["id"]):
+            self.sent_temperature = pending
+        else:
+            self.notice, self.notice_until = "Změnu teploty se nepodařilo odeslat",now+8
+        return True
+
+    def display_model(self, snapshot, now=None):
+        now = time.monotonic() if now is None else now
+        model = dict(snapshot)
+        draft = self.temperature or self.sent_temperature
+        if draft and draft["id"]==snapshot.get("heater_id"):
+            model["target_draft_c"] = draft["value"]
+            model["temperature_waiting"] = self.temperature is not None
+            if self.temperature:
+                model["message"] = f"Nový cíl {draft['value']} °C · odešlu po 2 s bez klepnutí"
+        elif now<self.notice_until and not model.get("message"):
+            model["message"] = self.notice
+        return model
 
     def tap(self, tap, calibration, hits, data):
         if tap.moved or tap.duration<.025 or tap.duration>3:
@@ -191,7 +259,10 @@ class ScreenState:
                     self.window[self.page] = action[1]
                 elif action[0]=="timer":
                     self.timer_dialog = action[1]=="open"
+                elif action[0]=="temperature":
+                    self.queue_temperature(action[1],data)
                 elif action[0]=="command":
+                    self.temperature = None
                     if data.submit(*action[1:]):
                         self.timer_dialog = False
                 return True
@@ -200,7 +271,7 @@ class ScreenState:
 
     def idle(self, busy=False, now=None):
         now = time.monotonic() if now is None else now
-        if self.idle_seconds and now-self.last_touch>=self.idle_seconds and not busy:
+        if self.idle_seconds and now-self.last_touch>=self.idle_seconds and not busy and not self.temperature:
             changed = self.page!="home" or self.timer_dialog
             self.page,self.timer_dialog = "home",False
             return changed
@@ -273,7 +344,7 @@ def main(argv=None):
     stopping = threading.Event()
     for sig in (signal.SIGTERM,signal.SIGINT):
         signal.signal(sig,lambda *_:stopping.set())
-    fb = reader = data = weather = None
+    fb = reader = data = weather = services = None
     try:
         fb = Framebuffer(args.fb)
         size = fb.size[::-1] if args.rotate in (90,270) else fb.size
@@ -286,8 +357,10 @@ def main(argv=None):
         state = ScreenState(args.idle_seconds)
         data = InfoData(args.api,directory,args.panel_id,args.plug_id,args.iot_refresh)
         weather = Weather(args.meteo_csv,args.meteo_refresh,args.meteo_stale)
+        services = ServiceHealth(args.health_api)
         data.start()
         weather.start()
+        services.start()
         next_render,system_next,history_next = 0,0,0
         system,history = {},[]
         history_key = None
@@ -315,7 +388,9 @@ def main(argv=None):
                 if state.tap(tap,calibration,hits,data):
                     next_render = 0
                     break
-            snapshot = data.snapshot()
+            if state.tick(data,now):
+                next_render = 0
+            snapshot = state.display_model(data.snapshot(),now)
             if state.idle(snapshot["busy"],now):
                 next_render = 0
             if now>=next_render:
@@ -338,7 +413,8 @@ def main(argv=None):
                             history = data.history.series(snapshot["plug_id"],window) if snapshot["plug_id"] else []
                         except (OSError,sqlite3.Error):
                             history = []
-                    snapshot.update(now=datetime.now(),system=system,meteo=meteo,meteo_history=meteo_history,plug_history=history)
+                    snapshot.update(now=datetime.now(),system=system,meteo=meteo,meteo_history=meteo_history,plug_history=history,
+                                    services=services.snapshot(),home_tiles=args.home_tiles)
                     if snapshot["history_error"] and state.page=="plug" and not snapshot["message"]:
                         snapshot["message"] = "Historii příkonu nelze uložit"
                     image,hits = render(state.page,snapshot,window,state.timer_dialog,size,args.font,args.layout)
@@ -349,7 +425,7 @@ def main(argv=None):
         logging.exception("Infopanel zastaven: %s",error)
         return 1
     finally:
-        for resource in (weather,data,reader,fb):
+        for resource in (services,weather,data,reader,fb):
             if resource is not None:
                 resource.close()
     return 0

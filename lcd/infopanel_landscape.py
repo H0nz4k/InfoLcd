@@ -3,8 +3,8 @@ from datetime import datetime
 
 from PIL import Image, ImageDraw
 
-from infopanel_ui import (AMBER, BG, BLUE, BORDER, GREEN, MUTED, PAGES, RED,
-                         TITLES, WHITE, Canvas, fit_canvas, fmt, number, usable)
+from infopanel_ui import (AMBER, BG, BLUE, BORDER, GREEN, MUTED, RED,
+                         TITLES, WHITE, Canvas, Hit, fit_canvas, fmt, font, number, status, usable)
 
 SIZE = (1024,600)
 
@@ -14,23 +14,15 @@ def timer_label(state):
     return "—" if type(minutes) is not int else ("Vypnutý" if minutes==0 else f"{minutes//60}:{minutes%60:02d}")
 
 
-def heading(c, rect, title, icon, color, state=None, action=None):
-    c.card(rect,color,action)
-    c.icon(icon,rect[0]+30,rect[1]+29,color)
-    c.text((rect[0]+50,rect[1]+17),title,18,WHITE,True)
-    if state is not None:
-        c.badge(rect[2]-16,rect[1]+16,state,16,28)
-
-
-def gauge(c, center, radius, state, large=False):
+def gauge(c, center, radius, state, large=False, draft=None):
     x,y = center
     values = state if usable(state) and state["power"] else {}
-    target = number(values.get("target_temp_c"))
+    target = number(draft if draft is not None else values.get("target_temp_c"))
     rect = (x-radius,y-radius,x+radius,y+radius)
     c.draw.arc(rect,135,405,fill=BORDER,width=7 if large else 5)
     if target is not None:
         c.draw.arc(rect,135,135+270*target/37,fill=AMBER,width=7 if large else 5)
-    c.text((x,y-40 if large else y-32),"Cílová teplota",18 if large else 16,MUTED,anchor="mm")
+    c.text((x,y-40 if large else y-32),"Nový cíl" if draft is not None else "Cílová teplota",18 if large else 16,MUTED,anchor="mm")
     c.text((x,y+5),fmt(target,0)+("°" if target is not None else ""),76 if large else 52,WHITE,True,anchor="mm")
     c.text((x,y+58 if large else y+50),"Aktuálně "+fmt(values.get("current_temp_c"),0," °C"),21 if large else 18,WHITE,anchor="mm")
 
@@ -46,55 +38,59 @@ def window_buttons(c, window):
         c.button((x,100,x+68,160),str(hours)+" h",("window",hours),selected=hours==window,size=16)
 
 
-def navigation(c, page):
-    c.draw.line((20,510,1004,510),fill=BORDER)
-    for i,name in enumerate(PAGES):
-        rect = (20+i*250,520,254+i*250,584)
-        selected = name==page
-        c.button(rect,"",("page",name),selected=selected)
-        x = (rect[0]+rect[2])/2
-        color = GREEN if selected else MUTED
-        c.icon(name,x-61,552,color)
-        c.text((x+15,552),"Přehled" if name=="home" else TITLES[name],17,color,True,anchor="mm")
+def tile_rects(count):
+    """Až devět stejně velkých dlaždic, bez prázdných náhradních karet."""
+    if not 0<=count<=9:
+        raise ValueError("Na jednu stránku se vejde nejvýše devět dlaždic.")
+    return [(20+(i%3)*334,138+(i//3)*154,336+(i%3)*334,274+(i//3)*154)
+            for i in range(count)]
+
+
+def service_tile(c, rect, role, model):
+    x0,y0,x1,y1 = rect
+    data = model.get(role) or {}
+    color = {"meteo":BLUE,"heater":AMBER,"plug":GREEN}[role]
+    c.card(rect,color,("page",role))
+    c.icon(role,x0+27,y0+28,color)
+    if role=="meteo":
+        secondary = fmt(data.get("soc"),0," %")
+        state_color = AMBER if data.get("stale") or number(data.get("soc")) is None or data["soc"]<20 else GREEN
+        value = fmt(data.get("temp"),1," °C")
+        value_color = AMBER if data.get("stale") else WHITE
+        title = "Meteo"
+    else:
+        label,state_color = status(data)
+        secondary = label if label in ("ON","OFF") else "—"
+        value = fmt(data.get("target_temp_c"),0," °C") if role=="heater" else fmt(data.get("power_w"),1," W")
+        if not usable(data):
+            value = "—"
+        value_color = WHITE
+        title = model.get(role+"_name") or TITLES[role]
+    c.text((x1-16,y0+18),secondary,18,state_color,True,anchor="ra")
+    reserve = c.draw.textlength(secondary,font=font(18,True,c.font_path))+26
+    c.text((x0+48,y0+17),title,18,WHITE,True,width=x1-x0-64-reserve)
+    room = model.get(role+"_room")
+    if role!="meteo" and room:
+        c.text((x0+20,y0+43),room,16,MUTED,width=x1-x0-40)
+    c.text(((x0+x1)/2,y0+89),value,44,value_color,True,anchor="mm",width=x1-x0-36)
 
 
 def overview(c, model):
-    meteo,heater,plug,system = (model.get(name) or {} for name in ("meteo","heater","plug","system"))
-    heading(c,(20,84,337,452),"Meteo","meteo",BLUE,action=("page","meteo"))
-    c.text((40,140),"Poslední teplota" if meteo.get("stale") else "Aktuální teplota",16,MUTED)
-    c.text((40,163),fmt(meteo.get("temp"),1," °C"),44,WHITE,True)
-    c.text((40,222),"Baterie "+fmt(meteo.get("soc"),0," %")+" · "+fmt(meteo.get("vbat"),3," V"),16,
-           AMBER if number(meteo.get("soc")) is not None and meteo["soc"]<20 else GREEN,width=278)
-    c.chart((38,273,318,390),model.get("meteo_history",[]),BLUE,"°C",label_size=16)
-    c.text((40,421),meteo.get("last_label","Bez dat")+(" · starší data" if meteo.get("stale") else ""),16,
-           AMBER if meteo.get("stale") else MUTED,width=278)
+    roles = model.get("home_tiles",["meteo","heater","plug"])
+    for rect,role in zip(tile_rects(len(roles)),roles):
+        service_tile(c,rect,role,model)
 
-    heading(c,(353,84,670,452),"Infrapanel","heater",AMBER,heater,("page","heater"))
-    c.text((373,134),model.get("heater_room","") or "Termostat",16,MUTED,width=277)
-    gauge(c,(511,254),96,heater)
-    c.text((373,364),"Časovač",16,MUTED)
-    c.text((650,364),timer_label(heater),16,WHITE,anchor="ra")
-    lock = heater.get("locked") if usable(heater) else None
-    c.text((373,396),"Dětský zámek",16,MUTED)
-    c.text((650,396),"—" if type(lock) is not bool else ("Zamčeno" if lock else "Odemčeno"),16,WHITE,anchor="ra")
-    c.text((373,427),"Chyba E1: teplotní čidlo" if heater.get("fault_code") else "Otevřít ovládání →",16,
-           RED if heater.get("fault_code") else AMBER,width=277)
 
-    heading(c,(686,84,1004,452),"Zásuvka","plug",GREEN,plug,("page","plug"))
-    values = plug if usable(plug) else {}
-    c.text((706,140),"Aktuální příkon",16,MUTED)
-    c.text((706,163),fmt(values.get("power_w"),1," W"),44,WHITE,True)
-    stat(c,706,226,"Dnes",fmt(values.get("energy_today_kwh"),3," kWh"),18,width=134)
-    stat(c,856,226,"Tento měsíc",fmt(values.get("energy_month_kwh"),3," kWh"),18,width=130)
-    c.chart((704,315,985,390),model.get("plug_history",[]),GREEN,"W",label_size=16)
-    c.text((706,421),"Příkon, spotřeba a ovládání →",16,GREEN,width=278)
-
-    c.card((20,466,1004,500))
-    c.text((36,483),"Raspberry Pi",16,MUTED,True,anchor="lm")
+def system_summary(c, model):
+    system = model.get("system") or {}
+    services = model.get("services")
+    count = str(services["online"])+"/"+str(services["total"]) if services else "—"
     summary = ("CPU "+fmt(system.get("cpu"),0," %")+"   RAM "+fmt(system.get("ram"),0," %")+
                "   Disk "+fmt(system.get("disk"),0," %")+"   "+fmt(system.get("temp"),1," °C")+
                "   Uptime "+str(system.get("uptime","—")))
-    c.text((988,483),summary,16,WHITE,anchor="rm",width=804)
+    c.draw.line((20,75,1004,75),fill=BORDER)
+    c.text((20,84),summary,17,MUTED,width=760)
+    c.text((1004,84),"Služby "+count,17,GREEN if services and services["online"]==services["total"] else AMBER,anchor="ra")
 
 
 def weather_page(c, model, window):
@@ -128,18 +124,18 @@ def heater_page(c, model):
     badge_left = c.badge(506,102,heater,16,30)
     c.text((40,105),model.get("heater_name","") or "Infrapanel",20,WHITE,True,width=badge_left-56)
     c.text((40,137),model.get("heater_room","") or "Termostat",16,MUTED,width=330)
-    gauge(c,(273,298),132,heater,large=True)
+    gauge(c,(273,298),132,heater,large=True,draft=model.get("target_draft_c"))
     c.text((40,469),"Chyba E1: teplotní čidlo" if heater.get("fault_code") else "Cílová teplota 0–37 °C",16,
            RED if heater.get("fault_code") else MUTED,width=466)
     c.card((542,84,1004,500))
     c.text((562,107),"Nastavení termostatu",19,WHITE,True)
-    target = heater.get("target_temp_c")
+    target = model.get("target_draft_c",heater.get("target_temp_c"))
     can_temp = active and type(target) is int and 0<=target<=37
-    c.button((562,155,640,219),"−",("command","heater","target_temp_c",target-1 if can_temp else 0),
+    c.button((562,155,640,219),"−",("temperature",-1),
              active=can_temp and target>0,size=32)
     c.text((773,174),"Nastavený cíl",16,MUTED,anchor="mm")
     c.text((773,202),fmt(target if usable(heater) else None,0," °C"),25,WHITE,True,anchor="mm")
-    c.button((906,155,984,219),"+",("command","heater","target_temp_c",target+1 if can_temp else 0),
+    c.button((906,155,984,219),"+",("temperature",1),
              active=can_temp and target<37,size=30)
     c.button((562,240,984,304),"Vypnout infrapanel" if heater.get("power") else "Zapnout infrapanel",
              ("command","heater","power",not heater.get("power")),active=active,
@@ -147,7 +143,7 @@ def heater_page(c, model):
     c.button((562,322,984,386),"Odemknout" if heater.get("locked") else "Dětský zámek: zamknout",
              ("command","heater","locked",not heater.get("locked")),active=active and type(heater.get("locked")) is bool,size=18)
     c.button((562,404,984,468),"Časovač: "+timer_label(heater),("timer","open"),active=active,size=19)
-    c.text((773,485),"Změny potvrzuje zařízení",16,MUTED,anchor="mm")
+    c.text((773,485),"Čeká na odeslání…" if model.get("temperature_waiting") else "Změny potvrzuje zařízení",16,MUTED,anchor="mm")
 
 
 def plug_page(c, model, window):
@@ -174,7 +170,7 @@ def plug_page(c, model, window):
 
 
 def timer_modal(c, model):
-    c.hits.clear()
+    c.hits[:] = [hit for hit in c.hits if hit.action==("page","home")]
     c.image = Image.blend(c.image,Image.new("RGB",SIZE,BG),.75)
     c.draw = ImageDraw.Draw(c.image)
     c.card((232,122,792,468))
@@ -193,15 +189,24 @@ def render_landscape(page, model, window, timer_dialog, size, font_path):
     system = model.get("system") or {}
     c.icon("home",35,30,GREEN)
     c.text((56,15),"HanzHub",24,GREEN,True)
-    c.text((208,19),"Přehled" if page=="home" else TITLES.get(page,"HanzHub"),21,WHITE,True)
-    c.text((1004,15),now.strftime("%H:%M:%S"),27,WHITE,anchor="ra")
-    c.text((834,15),now.strftime("%d.%m.%Y"),27,WHITE,anchor="ra")
+    c.hits.append(Hit((20,0,190,64),("page","home")))
+    if page!="home":
+        c.text((208,19),TITLES.get(page,"HanzHub"),21,WHITE,True)
+    c.text((816,15),now.strftime("%H:%M:%S"),27,WHITE,anchor="ra")
+    c.text((1004,15),now.strftime("%d.%m.%Y"),27,WHITE,anchor="ra")
     message = model.get("message")
-    subtitle = message or (system.get("ip") or "Bez sítě")
-    c.text((20,54),subtitle,16,AMBER if message else MUTED,width=984)
+    subtitle = system.get("ip") or "Bez sítě"
+    c.text((20,54),subtitle,16,MUTED,width=190)
+    if page!="home" and message:
+        c.text((220,54),message,16,AMBER,width=784)
     {"home":overview,"meteo":lambda canvas,data:weather_page(canvas,data,window),
      "heater":heater_page,"plug":lambda canvas,data:plug_page(canvas,data,window)}.get(page,overview)(c,model)
-    navigation(c,page)
+    if page=="home":
+        system_summary(c,model)
+        if message:
+            c.text((20,111),message,16,AMBER,width=984)
     if timer_dialog:
         timer_modal(c,model)
+        c.icon("home",35,30,GREEN)
+        c.text((56,15),"HanzHub",24,GREEN,True)
     return fit_canvas(c,size)

@@ -9,6 +9,7 @@ sys.path.insert(0,str(ROOT/"lcd"))
 from infopanel import ScreenState, arguments, calibration_targets, validate_settings
 from infopanel_touch import Calibration, Tap
 from infopanel_ui import BG, CARD, PAGES, layout_for, render
+from infopanel_landscape import tile_rects
 from preview_infopanel import demo_model
 
 
@@ -32,7 +33,7 @@ class LandscapeTests(unittest.TestCase):
         calibration = Calibration(((0,1024),(0,600)),size,[[1024,0,0],[0,600,0]])
         calls = []
         data = SimpleNamespace(submit=lambda *args:calls.append(args))
-        cards = [hit for hit in hits if hit.action[0]=="page" and hit.rect[1]<100]
+        cards = [hit for hit in hits if hit.action[0]=="page" and hit.action[1]!="home"]
         self.assertEqual([hit.action[1] for hit in cards],["meteo","heater","plug"])
         for hit in cards:
             x,y = (hit.rect[0]+hit.rect[2])/2,(hit.rect[1]+hit.rect[3])/2
@@ -64,13 +65,15 @@ class LandscapeTests(unittest.TestCase):
                 return ((1-y/size[1])*4095,x/size[0]*4095)
             calibration = Calibration.fit(((0,4095),(0,4095)),size,[raw(*point) for point in targets],targets)
             _,hits = render("heater",demo_model(),size=size)
-            hit = next(hit for hit in hits if hit.action==("command","heater","target_temp_c",26))
+            hit = next(hit for hit in hits if hit.action==("temperature",1))
             point = raw((hit.rect[0]+hit.rect[2])/2,(hit.rect[1]+hit.rect[3])/2)
             calls = []
-            data = SimpleNamespace(submit=lambda *args:calls.append(args) or True)
+            data = SimpleNamespace(submit=lambda *args,**kwargs:calls.append(args) or True,snapshot=demo_model)
             state = ScreenState()
             state.page = "heater"
             state.tap(Tap(*point,*point,False,.1),calibration,hits,data)
+            self.assertEqual(calls,[])
+            state.tick(data,state.temperature["due"])
             self.assertEqual(calls,[("heater","target_temp_c",26)])
 
     def test_offline_busy_and_incomplete_states_disable_controls(self):
@@ -79,16 +82,16 @@ class LandscapeTests(unittest.TestCase):
         for change in changes:
             for page in ("heater","plug"):
                 _,hits = render(page,{**demo_model(),**change},size=(1024,600))
-                self.assertFalse(any(hit.action[0] in ("command","timer") for hit in hits))
+                self.assertFalse(any(hit.action[0] in ("command","timer","temperature") for hit in hits))
             _,hits = render("heater",{**demo_model(),**change},size=(1024,600),timer_dialog=True)
-            self.assertEqual([hit.action for hit in hits],[("timer","close")])
+            self.assertEqual([hit.action for hit in hits],[("page","home"),("timer","close")])
 
     def test_temperature_bounds_and_missing_values(self):
-        for target,expected in ((0,1),(37,36)):
+        for target,expected in ((0,1),(37,-1)):
             model = demo_model()
             model["heater"]["target_temp_c"] = target
             _,hits = render("heater",model,size=(1024,600))
-            values = [hit.action[3] for hit in hits if hit.action[:3]==("command","heater","target_temp_c")]
+            values = [hit.action[1] for hit in hits if hit.action[0]=="temperature"]
             self.assertEqual(values,[expected])
         for page in PAGES:
             model = {"meteo":{"temp":float("nan")},"heater":{},"plug":{},
@@ -99,7 +102,7 @@ class LandscapeTests(unittest.TestCase):
         state = ScreenState()
         state.page,state.timer_dialog = "heater",True
         _,hits = render("heater",demo_model(),timer_dialog=True,size=(1024,600))
-        self.assertFalse(any(hit.action[0]=="page" for hit in hits))
+        self.assertEqual([hit.action for hit in hits if hit.action[0]=="page"],[("page","home")])
         calibration = Calibration(((0,1024),(0,600)),(1024,600),[[1024,0,0],[0,600,0]])
         calls = []
         data = SimpleNamespace(submit=lambda *args:calls.append(args) or True)
