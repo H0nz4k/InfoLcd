@@ -25,7 +25,7 @@ from lcd_info import (FBIOGET_FSCREENINFO, FBIOGET_VSCREENINFO, fb_fix_screeninf
                       fb_var_screeninfo, fb_ioctl_struct, rgb_to_rgb565_bytes,
                       _try_parse_line, get_cpu_temp_c, get_iface_ip, get_uptime_str)
 
-VERSION = "2.2.0"
+VERSION = "2.2.1"
 DEFAULTS = {"fb":"/dev/fb0","rotate":0,"touch":"auto","layout":"auto",
             "font":"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "meteo_csv":"/opt/meteo3/meteo_log.csv","meteo_refresh":15,"meteo_stale":3600,

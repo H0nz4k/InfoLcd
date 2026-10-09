@@ -88,9 +88,10 @@ def system_summary(c, model):
     summary = ("CPU "+fmt(system.get("cpu"),0," %")+"   RAM "+fmt(system.get("ram"),0," %")+
                "   Disk "+fmt(system.get("disk"),0," %")+"   "+fmt(system.get("temp"),1," °C")+
                "   Uptime "+str(system.get("uptime","—")))
-    c.draw.line((20,75,1004,75),fill=BORDER)
-    c.text((20,84),summary,17,MUTED,width=760)
-    c.text((1004,84),"Služby "+count,17,GREEN if services and services["online"]==services["total"] else AMBER,anchor="ra")
+    c.draw.line((20,56,1004,56),fill=BORDER)
+    c.text((20,65),system.get("ip") or "Bez sítě",18,WHITE,True,width=760)
+    c.text((1004,65),"Služby "+count,18,GREEN if services and services["online"]==services["total"] else AMBER,True,anchor="ra")
+    c.text((20,92),summary,18,WHITE,True,width=984)
 
 
 def weather_page(c, model, window):
@@ -196,7 +197,8 @@ def render_landscape(page, model, window, timer_dialog, size, font_path):
     c.text((1004,15),now.strftime("%d.%m.%Y"),27,WHITE,anchor="ra")
     message = model.get("message")
     subtitle = system.get("ip") or "Bez sítě"
-    c.text((20,54),subtitle,16,MUTED,width=190)
+    if page!="home":
+        c.text((20,54),subtitle,16,MUTED,width=190)
     if page!="home" and message:
         c.text((220,54),message,16,AMBER,width=784)
     {"home":overview,"meteo":lambda canvas,data:weather_page(canvas,data,window),
@@ -204,7 +206,7 @@ def render_landscape(page, model, window, timer_dialog, size, font_path):
     if page=="home":
         system_summary(c,model)
         if message:
-            c.text((20,111),message,16,AMBER,width=984)
+            c.text((20,117),message,16,AMBER,width=984)
     if timer_dialog:
         timer_modal(c,model)
         c.icon("home",35,30,GREEN)
