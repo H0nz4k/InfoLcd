@@ -19,13 +19,12 @@ from PIL import Image, ImageDraw
 
 from infopanel_data import InfoData, ServiceHealth, finite, meteo_records
 from infopanel_touch import Calibration, TouchReader, list_touch_devices
-from infopanel_ui import BG, WHITE, GREEN, AMBER, PAGES, font, layout_for, render
+from infopanel_ui import BG, WHITE, GREEN, AMBER, PAGES, VERSION, font, layout_for, render
 from infopanel_system import SystemMonitor
 from lcd_info import (FBIOGET_FSCREENINFO, FBIOGET_VSCREENINFO, fb_fix_screeninfo,
                       fb_var_screeninfo, fb_ioctl_struct, rgb_to_rgb565_bytes,
                       _try_parse_line)
 
-VERSION = "2.3.0"
 DEFAULTS = {"fb":"/dev/fb0","rotate":0,"touch":"auto","layout":"auto",
             "font":"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "meteo_csv":"/opt/meteo3/meteo_log.csv","meteo_refresh":15,"meteo_stale":3600,

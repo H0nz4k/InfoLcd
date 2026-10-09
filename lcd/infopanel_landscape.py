@@ -4,7 +4,7 @@ from datetime import datetime
 from PIL import Image, ImageDraw
 
 from infopanel_ui import (AMBER, BG, BLUE, BORDER, GREEN, MUTED, RED,
-                         TITLES, WHITE, Canvas, Hit, fit_canvas, fmt, font, number, status, usable)
+                         TITLES, WHITE, HEADER_VERSION, Canvas, Hit, fit_canvas, fmt, font, number, status, usable)
 from infopanel_system import age_label, warnings
 
 SIZE = (1024,600)
@@ -89,24 +89,33 @@ def system_summary(c, model):
     system = model.get("system") or {}
     services = model.get("services")
     count = str(services["online"])+"/"+str(services["total"]) if services else "—"
-    summary = ("CPU "+fmt(system.get("cpu"),0," %")+"   RAM "+fmt(system.get("ram"),0," %")+
-               "   Disk "+fmt(system.get("disk"),0," %")+"   "+fmt(system.get("temp"),1," °C")+
-               "   Uptime "+str(system.get("uptime","—")))
     c.draw.line((20,56,1004,56),fill=BORDER)
-    c.hits.append(Hit((20,64,1004,126),("page","system")))
-    c.text((20,65),system.get("ip") or "Bez sítě",18,WHITE,True,width=410)
+    # Labels, values and units have separate fixed columns. A longer value
+    # cannot move the following statistic or its unit.
+    for x,right,unit_x,label,key in ((20,107,114,"CPU","cpu"),
+                                    (144,236,243,"RAM","ram"),
+                                    (274,363,370,"Disk","disk")):
+        c.text((x,65),label,18,WHITE,True,width=48 if key=="ram" else 44)
+        c.text((right,65),fmt(system.get(key),0),18,WHITE,True,anchor="ra",width=40)
+        c.text((unit_x,65),"%",18,WHITE,True)
+    c.text((477,65),fmt(system.get("temp"),1),18,WHITE,True,anchor="ra",width=69)
+    c.text((486,65),"°C",18,WHITE,True)
+    c.text((532,65),"Uptime",18,WHITE,True,width=80)
+    c.text((624,65),str(system.get("uptime","—")),18,WHITE,True,width=150)
     iot = model.get("iot")
     iot_count = str(iot["online"])+"/"+str(iot["total"]) if iot else "—"
-    c.text((785,65),"IoT online "+iot_count,18,
-           GREEN if iot and iot["online"]==iot["total"] else AMBER,True,anchor="ra")
-    c.text((1004,65),"Služby "+count,18,GREEN if services and services["online"]==services["total"] else AMBER,True,anchor="ra")
-    c.text((20,92),summary,18,WHITE,True,width=984)
+    iot_color = GREEN if iot and iot["online"]==iot["total"] else AMBER
+    c.text((806,97),"IoT online",18,iot_color,True,width=118)
+    c.text((1004,97),iot_count,18,iot_color,True,anchor="ra",width=72)
+    service_color = GREEN if services and services["online"]==services["total"] else AMBER
+    c.text((806,65),"Služby",18,service_color,True,width=88)
+    c.text((1004,65),count,18,service_color,True,anchor="ra",width=104)
     alerts = warnings(model)
     if alerts:
-        c.text((20,117),"! "+" · ".join(alerts),16,
-               RED if any(not item.startswith("Meteo:") for item in alerts) else AMBER,True,width=984)
+        c.text((20,99),"! "+" · ".join(alerts),16,
+               RED if any(not item.startswith("Meteo:") for item in alerts) else AMBER,True,width=780)
     elif model.get("message"):
-        c.text((20,117),model["message"],16,AMBER,width=984)
+        c.text((20,99),model["message"],16,AMBER,width=780)
 
 
 def weather_page(c, model, window):
@@ -286,23 +295,23 @@ def system_page(c, model):
         c.text((540,553),"Systémové údaje nedostupné",16,AMBER,width=444)
 
 
+def brand(c, page, with_hit=True):
+    c.icon("home",35,31,GREEN)
+    c.text((56,9),"HanzHub",30,GREEN,True)
+    c.text((228,25),HEADER_VERSION,14,MUTED)
+    if with_hit:
+        c.hits.append(Hit((20,0,292,64),("page","system" if page=="home" else "home")))
+
+
 def render_landscape(page, model, window, timer_dialog, size, font_path):
     c = Canvas(font_path,SIZE)
     now = model.get("now") or datetime.now()
-    system = model.get("system") or {}
-    c.icon("home",35,30,GREEN)
-    c.text((56,15),"HanzHub",24,GREEN,True)
-    c.hits.append(Hit((20,0,190,64),("page","home")))
-    if page!="home":
-        c.text((208,19),TITLES.get(page,"HanzHub"),21,WHITE,True)
+    brand(c,page)
     c.text((816,15),now.strftime("%H:%M:%S"),27,WHITE,anchor="ra")
     c.text((1004,15),now.strftime("%d.%m.%Y"),27,WHITE,anchor="ra")
     message = model.get("message")
-    subtitle = system.get("ip") or "Bez sítě"
-    if page!="home":
-        c.text((20,54),subtitle,16,MUTED,width=190)
     if page!="home" and message:
-        c.text((220,54),message,16,AMBER,width=784)
+        c.text((20,54),message,16,AMBER,width=984)
     {"home":overview,"meteo":lambda canvas,data:weather_page(canvas,data,window),
      "heater":heater_page,"plug":lambda canvas,data:plug_page(canvas,data,window),
      "system":system_page}.get(page,overview)(c,model)
@@ -310,6 +319,5 @@ def render_landscape(page, model, window, timer_dialog, size, font_path):
         system_summary(c,model)
     if timer_dialog:
         timer_modal(c,model)
-        c.icon("home",35,30,GREEN)
-        c.text((56,15),"HanzHub",24,GREEN,True)
+        brand(c,page,with_hit=False)
     return fit_canvas(c,size)

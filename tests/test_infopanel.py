@@ -168,8 +168,8 @@ class InteractionTests(unittest.TestCase):
         for page in ("home","meteo","heater","plug"):
             self.assertEqual(render(page,model)[0].size,(320,480))
         _,hits = render("heater",demo_model(),timer_dialog=True)
-        self.assertFalse(any(hit.action[0]=="page" for hit in hits))
-        self.assertEqual(len(hits),7)
+        self.assertEqual([hit.action for hit in hits if hit.action[0]=="page"],[("page","home")])
+        self.assertEqual(len(hits),8)
 
 
 class HistoryTests(unittest.TestCase):

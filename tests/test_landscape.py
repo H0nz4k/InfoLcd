@@ -33,8 +33,8 @@ class LandscapeTests(unittest.TestCase):
         calibration = Calibration(((0,1024),(0,600)),size,[[1024,0,0],[0,600,0]])
         calls = []
         data = SimpleNamespace(submit=lambda *args:calls.append(args))
-        cards = [hit for hit in hits if hit.action[0]=="page" and hit.action[1]!="home"]
-        self.assertEqual([hit.action[1] for hit in cards],["meteo","heater","plug","system"])
+        cards = [hit for hit in hits if hit.action[0]=="page" and hit.action[1] in ("meteo","heater","plug")]
+        self.assertEqual([hit.action[1] for hit in cards],["meteo","heater","plug"])
         for hit in cards:
             x,y = (hit.rect[0]+hit.rect[2])/2,(hit.rect[1]+hit.rect[3])/2
             state = ScreenState()

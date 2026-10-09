@@ -87,7 +87,7 @@ class TileNavigationTests(unittest.TestCase):
     def test_brand_goes_home_from_every_detail_and_timer(self):
         calibration = Calibration(((0,1024),(0,600)),(1024,600),[[1024,0,0],[0,600,0]])
         data = SimpleNamespace(submit=lambda *args:self.fail("Navigace nesmí poslat příkaz"))
-        for page in ("meteo","heater","plug"):
+        for page in ("meteo","heater","plug","system"):
             for modal in (False,True) if page=="heater" else (False,):
                 state = ScreenState()
                 state.page,state.timer_dialog = page,modal
@@ -100,7 +100,7 @@ class TileNavigationTests(unittest.TestCase):
         model = demo_model()
         model["home_tiles"] = ["plug","meteo"]
         _,hits = render("home",model,size=(1024,600))
-        self.assertEqual([h.action for h in hits if h.action[0]=="page"],[("page","home"),("page","plug"),("page","meteo"),("page","system")])
+        self.assertEqual([h.action for h in hits if h.action[0]=="page"],[("page","system"),("page","plug"),("page","meteo")])
         self.assertEqual(validate_settings({"home_tiles":["plug"]})["home_tiles"],["plug"])
         for bad in ([],["other"],["heater","heater"],"meteo",[None]):
             with self.assertRaises(ValueError):

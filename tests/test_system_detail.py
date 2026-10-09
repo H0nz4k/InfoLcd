@@ -146,13 +146,15 @@ class IoTCountTests(unittest.TestCase):
 
 
 class SystemNavigationTests(unittest.TestCase):
-    def test_band_opens_detail_and_brand_goes_home_without_commands(self):
+    def test_only_brand_on_home_opens_detail_and_brand_returns_home(self):
         size = (1024,600)
         calibration = Calibration(((0,1024),(0,600)),size,[[1024,0,0],[0,600,0]])
         data = NS(submit=lambda *args:self.fail("Read-only detail must not submit"))
         state = ScreenState()
         _,hits = render("home",demo_model(),size=size)
         state.tap(Tap(500,95,500,95,False,.1),calibration,hits,data)
+        self.assertEqual(state.page,"home")
+        state.tap(Tap(100,30,100,30,False,.1),calibration,hits,data)
         self.assertEqual(state.page,"system")
         _,hits = render(state.page,demo_model(),size=size)
         state.tap(Tap(100,30,100,30,False,.1),calibration,hits,data)

@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw
-from infopanel_ui import BG, MUTED, PAGES, TITLES, font, render
+from infopanel_ui import BG, MUTED, PAGES, TITLES, VERSION, font, render
 
 
 def demo_model():
@@ -36,7 +36,7 @@ def portrait_previews(output):
         x = 20+i*340
         composite.paste(image,(x,40))
         draw.text((x+160,18),"Přehled" if page=="home" else TITLES[page],font=font(16,True),fill=MUTED,anchor="mm")
-    draw.text((688,535),"HanzHub · Infopanel v2 · ukázková data · obrazovky 320 × 480",font=font(13),fill=MUTED,anchor="mm")
+    draw.text((688,535),f"HanzHub · Infopanel v{VERSION} · ukázková data · obrazovky 320 × 480",font=font(13),fill=MUTED,anchor="mm")
     composite.save(output/"infopanel-v2.png")
     model.update(heater={"online":False},plug={"online":False},iot={"online":0,"total":2},meteo={"stale":True})
     render("home",model)[0].save(output/"offline.png")
@@ -57,7 +57,7 @@ def landscape_previews(output):
         x,y = 10+(i%2)*532,38+(i//2)*340
         composite.paste(image.resize((512,300),Image.Resampling.LANCZOS),(x,y))
         draw.text((x+256,y-20),"Přehled" if page=="home" else TITLES[page],font=font(16,True),fill=MUTED,anchor="mm")
-    draw.text((532,708),"HanzHub · Infopanel v2.3.0 · ukázková data · obrazovky 1024 × 600",font=font(13),fill=MUTED,anchor="mm")
+    draw.text((532,708),f"HanzHub · Infopanel v{VERSION} · ukázková data · obrazovky 1024 × 600",font=font(13),fill=MUTED,anchor="mm")
     composite.save(output/"infopanel-landscape.png")
     model = demo_model()
     model.update(heater={"online":False},plug={"online":False},iot={"online":0,"total":2},meteo={"stale":True})

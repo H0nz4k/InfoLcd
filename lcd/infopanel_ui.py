@@ -17,6 +17,8 @@ GREEN = (43, 213, 146)
 RED = (255, 100, 108)
 AMBER = (255, 173, 65)
 BLUE = (75, 194, 255)
+VERSION = "2.4.0"
+HEADER_VERSION = "v"+".".join(VERSION.split(".")[:2])
 PAGES = ("home", "meteo", "heater", "plug")
 TITLES = {"home": "HanzHub", "meteo": "Meteo", "heater": "Infrapanel", "plug": "Zásuvka", "system": "Raspberry"}
 
@@ -202,11 +204,13 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
     now = model.get("now") or datetime.now()
     heater, plug = model.get("heater") or {}, model.get("plug") or {}
     meteo, system = model.get("meteo") or {}, model.get("system") or {}
-    c.text((12,8), TITLES.get(page, "HanzHub"), 22, GREEN if page=="home" else WHITE, True)
+    c.text((12,6), "HanzHub", 24, GREEN, True)
+    c.text((165,17), HEADER_VERSION, 12, MUTED)
+    c.hits.append(Hit((8,0,210,50),("page","system" if page=="home" else "home")))
     c.text((308,12), now.strftime("%H:%M:%S"), 16, WHITE, anchor="ra")
     message = model.get("message")
-    subtitle = message or (system.get("ip", "Bez sítě") if page=="home" else model.get(page+"_name", TITLES.get(page,"")))
-    c.text((12,36), subtitle, 11, AMBER if message else MUTED, width=296)
+    if message:
+        c.text((12,36), message, 11, AMBER, width=296)
     h_active = usable(heater) and not model.get("busy")
     p_active = usable(plug) and not model.get("busy")
     ht = heater if usable(heater) and heater["power"] else {}
@@ -214,8 +218,6 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
     if page == "system":
         from infopanel_landscape import byte_label, firmware_label
         from infopanel_system import warnings
-        c.text((12,8),"HanzHub",22,GREEN,True)
-        c.hits.append(Hit((8,0,144,50),("page","home")))
         c.card((8,58,312,249),BLUE)
         c.text((20,70),"Raspberry Pi · "+str(system.get("uptime","—")),16,WHITE,True,width=280)
         c.text((20,100),"CPU "+fmt(system.get("cpu"),0," %")+" · RAM "+fmt(system.get("ram"),0," %"),14,WHITE,width=280)
@@ -260,10 +262,14 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
         c.text((20,320), fmt(plug.get("power_w") if usable(plug) else None,1," W"), 29, WHITE, True)
         c.text((300,325), "Dnes", 11, MUTED, anchor="ra")
         c.text((300,342), fmt(plug.get("energy_today_kwh") if usable(plug) else None,3," kWh"), 14, WHITE, anchor="ra")
-        c.text((12,385), "Raspberry Pi", 11, MUTED)
-        c.text((308,382), "CPU "+fmt(system.get("cpu"),0," %")+" · "+fmt(system.get("temp"),1," °C"), 12, WHITE, anchor="ra")
-        c.text((12,402), "RAM "+fmt(system.get("ram"),0," %")+" · disk "+fmt(system.get("disk"),0," %")+" · "+str(system.get("uptime","—")), 10, MUTED, width=296)
-        c.hits.append(Hit((8,375,312,419),("page","system")))
+        c.text((12,384), "CPU", 11, MUTED)
+        c.text((85,382), fmt(system.get("cpu"),0," %"), 12, WHITE, anchor="ra",width=44)
+        c.text((308,382), fmt(system.get("temp"),1," °C"), 12, WHITE, anchor="ra",width=96)
+        c.text((12,402), "RAM", 10, MUTED)
+        c.text((89,402), fmt(system.get("ram"),0," %"), 10, WHITE,anchor="ra",width=49)
+        c.text((102,402), "Disk", 10, MUTED)
+        c.text((177,402), fmt(system.get("disk"),0," %"), 10, WHITE,anchor="ra",width=49)
+        c.text((308,402), str(system.get("uptime","—")), 10, WHITE,anchor="ra",width=110)
     elif page == "meteo":
         c.card((8,58,312,140),BLUE)
         c.text((20,66), "Aktuální teplota" if not meteo.get("stale") else "Poslední teplota", 12, MUTED)
@@ -322,7 +328,7 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
                  active=p_active,color=GREEN if plug.get("power") else RED)
     c.nav(page)
     if timer_dialog:
-        c.hits.clear()
+        c.hits[:] = [hit for hit in c.hits if hit.action==("page","home") and hit.rect[3]<=50]
         shade = Image.new("RGB",c.image.size,BG)
         c.image = Image.blend(c.image,shade,.75)
         c.draw = ImageDraw.Draw(c.image)
@@ -332,4 +338,6 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
             x,y = 24+(i%2)*142,163+(i//2)*57
             c.button((x,y,x+130,y+49), "Vypnout" if hours==0 else str(hours)+" h", ("command","heater","timer_minutes",hours*60),active=h_active)
         c.button((24,344,296,395),"Zpět",("timer","close"))
+        c.text((12,6), "HanzHub", 24, GREEN, True)
+        c.text((165,17), HEADER_VERSION, 12, MUTED)
     return fit_canvas(c,size)
