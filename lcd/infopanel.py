@@ -16,16 +16,16 @@ import time
 from urllib.parse import urlsplit
 
 from PIL import Image, ImageDraw
-import psutil
 
 from infopanel_data import InfoData, ServiceHealth, finite, meteo_records
 from infopanel_touch import Calibration, TouchReader, list_touch_devices
 from infopanel_ui import BG, WHITE, GREEN, AMBER, PAGES, font, layout_for, render
+from infopanel_system import SystemMonitor
 from lcd_info import (FBIOGET_FSCREENINFO, FBIOGET_VSCREENINFO, fb_fix_screeninfo,
                       fb_var_screeninfo, fb_ioctl_struct, rgb_to_rgb565_bytes,
-                      _try_parse_line, get_cpu_temp_c, get_iface_ip, get_uptime_str)
+                      _try_parse_line)
 
-VERSION = "2.2.1"
+VERSION = "2.3.0"
 DEFAULTS = {"fb":"/dev/fb0","rotate":0,"touch":"auto","layout":"auto",
             "font":"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
             "meteo_csv":"/opt/meteo3/meteo_log.csv","meteo_refresh":15,"meteo_stale":3600,
@@ -171,6 +171,7 @@ class Weather:
             if not finite(record.get(field)):
                 record[field] = None
         record["stale"] = timestamp is None or now-timestamp.timestamp()>self.stale
+        record["age_seconds"] = max(0,now-timestamp.timestamp()) if timestamp else None
         record["last_label"] = timestamp.strftime("%H:%M · %d.%m.%y") if timestamp else "Bez dat"
         samples = [(row["ts"].timestamp(),row["temp"]) for row in rows
                    if now-hours*3600<=row["ts"].timestamp()<=now and finite(row.get("temp"))]
@@ -183,6 +184,7 @@ class Weather:
 class ScreenState:
     def __init__(self, idle_seconds=60):
         self.page = "home"
+        self.services_page = 0
         self.window = {"meteo":24,"plug":24}
         self.timer_dialog = False
         self.last_touch = time.monotonic()
@@ -253,8 +255,11 @@ class ScreenState:
             if hit.contains(x,y) and hit.contains(*start):
                 action = hit.action
                 self.last_touch = time.monotonic()
-                if action[0]=="page" and action[1] in PAGES:
+                if action[0]=="page" and action[1] in PAGES+("system",):
                     self.page,self.timer_dialog = action[1],False
+                    self.services_page = 0
+                elif action[0]=="services_page" and self.page=="system" and type(action[1]) is int and 0<=action[1]<=1000:
+                    self.services_page = action[1]
                 elif action[0]=="window" and self.page in self.window and action[1] in (1,6,24):
                     self.window[self.page] = action[1]
                 elif action[0]=="timer":
@@ -344,7 +349,7 @@ def main(argv=None):
     stopping = threading.Event()
     for sig in (signal.SIGTERM,signal.SIGINT):
         signal.signal(sig,lambda *_:stopping.set())
-    fb = reader = data = weather = services = None
+    fb = reader = data = weather = services = monitor = None
     try:
         fb = Framebuffer(args.fb)
         size = fb.size[::-1] if args.rotate in (90,270) else fb.size
@@ -358,11 +363,13 @@ def main(argv=None):
         data = InfoData(args.api,directory,args.panel_id,args.plug_id,args.iot_refresh)
         weather = Weather(args.meteo_csv,args.meteo_refresh,args.meteo_stale)
         services = ServiceHealth(args.health_api)
+        monitor = SystemMonitor(args.iface)
         data.start()
         weather.start()
         services.start()
-        next_render,system_next,history_next = 0,0,0
-        system,history = {},[]
+        monitor.start()
+        next_render,history_next = 0,0
+        history = []
         history_key = None
         hits = []
         logging.info("Infopanel %s běží; %s, rozložení %s, otočení %s; dotyk %s",VERSION,size,layout_for(size,args.layout),args.rotate,reader.description["name"])
@@ -399,11 +406,6 @@ def main(argv=None):
                     image = calibration_image(size,len(raw_points),args.font,error)
                     hits = []
                 else:
-                    if now>=system_next:
-                        system_next = now+2
-                        system = {"cpu":psutil.cpu_percent(),"ram":psutil.virtual_memory().percent,
-                                  "disk":psutil.disk_usage("/").percent,"temp":get_cpu_temp_c(),
-                                  "uptime":get_uptime_str(),"ip":get_iface_ip(args.iface)}
                     window = state.window.get(state.page,24)
                     meteo,meteo_history = weather.snapshot(window)
                     key = (snapshot["plug_id"],window)
@@ -413,8 +415,8 @@ def main(argv=None):
                             history = data.history.series(snapshot["plug_id"],window) if snapshot["plug_id"] else []
                         except (OSError,sqlite3.Error):
                             history = []
-                    snapshot.update(now=datetime.now(),system=system,meteo=meteo,meteo_history=meteo_history,plug_history=history,
-                                    services=services.snapshot(),home_tiles=args.home_tiles)
+                    snapshot.update(now=datetime.now(),system=monitor.snapshot(),meteo=meteo,meteo_history=meteo_history,plug_history=history,
+                                    services=services.snapshot(),home_tiles=args.home_tiles,services_page=state.services_page)
                     if snapshot["history_error"] and state.page=="plug" and not snapshot["message"]:
                         snapshot["message"] = "Historii příkonu nelze uložit"
                     image,hits = render(state.page,snapshot,window,state.timer_dialog,size,args.font,args.layout)
@@ -425,7 +427,7 @@ def main(argv=None):
         logging.exception("Infopanel zastaven: %s",error)
         return 1
     finally:
-        for resource in (services,weather,data,reader,fb):
+        for resource in (monitor,services,weather,data,reader,fb):
             if resource is not None:
                 resource.close()
     return 0

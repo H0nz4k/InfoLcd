@@ -5,6 +5,7 @@ from PIL import Image, ImageDraw
 
 from infopanel_ui import (AMBER, BG, BLUE, BORDER, GREEN, MUTED, RED,
                          TITLES, WHITE, Canvas, Hit, fit_canvas, fmt, font, number, status, usable)
+from infopanel_system import age_label, warnings
 
 SIZE = (1024,600)
 
@@ -73,6 +74,9 @@ def service_tile(c, rect, role, model):
     if role!="meteo" and room:
         c.text((x0+20,y0+43),room,16,MUTED,width=x1-x0-40)
     c.text(((x0+x1)/2,y0+89),value,44,value_color,True,anchor="mm",width=x1-x0-36)
+    if role=="meteo":
+        c.text(((x0+x1)/2,y1-23),age_label(data.get("age_seconds")),16,
+               AMBER if data.get("stale") else MUTED,anchor="ma",width=x1-x0-36)
 
 
 def overview(c, model):
@@ -89,9 +93,20 @@ def system_summary(c, model):
                "   Disk "+fmt(system.get("disk"),0," %")+"   "+fmt(system.get("temp"),1," °C")+
                "   Uptime "+str(system.get("uptime","—")))
     c.draw.line((20,56,1004,56),fill=BORDER)
-    c.text((20,65),system.get("ip") or "Bez sítě",18,WHITE,True,width=760)
+    c.hits.append(Hit((20,64,1004,126),("page","system")))
+    c.text((20,65),system.get("ip") or "Bez sítě",18,WHITE,True,width=410)
+    iot = model.get("iot")
+    iot_count = str(iot["online"])+"/"+str(iot["total"]) if iot else "—"
+    c.text((785,65),"IoT online "+iot_count,18,
+           GREEN if iot and iot["online"]==iot["total"] else AMBER,True,anchor="ra")
     c.text((1004,65),"Služby "+count,18,GREEN if services and services["online"]==services["total"] else AMBER,True,anchor="ra")
     c.text((20,92),summary,18,WHITE,True,width=984)
+    alerts = warnings(model)
+    if alerts:
+        c.text((20,117),"! "+" · ".join(alerts),16,
+               RED if any(not item.startswith("Meteo:") for item in alerts) else AMBER,True,width=984)
+    elif model.get("message"):
+        c.text((20,117),model["message"],16,AMBER,width=984)
 
 
 def weather_page(c, model, window):
@@ -109,7 +124,7 @@ def weather_page(c, model, window):
     c.draw.line((40,387,306,387),fill=BORDER)
     c.text((40,407),"Poslední měření",16,MUTED)
     c.text((40,430),meteo.get("last_label","Bez dat"),17,WHITE,width=266)
-    c.text((40,468),"Starší data" if meteo.get("stale") else "Záznamy z meteostanice",16,
+    c.text((40,468),age_label(meteo.get("age_seconds"))+(" · starší data" if meteo.get("stale") else ""),16,
            AMBER if meteo.get("stale") else MUTED,width=266)
     c.card((342,84,1004,500))
     c.text((364,112),"Teplota",20,WHITE,True)
@@ -184,6 +199,93 @@ def timer_modal(c, model):
     c.button((256,383,768,447),"Zpět",("timer","close"),size=19)
 
 
+def byte_label(value, rate=False):
+    if number(value) is None or value < 0:
+        return "—"
+    units = ("B","KiB","MiB","GiB","TiB")
+    index = 0
+    while value >= 1024 and index < len(units)-1:
+        value /= 1024
+        index += 1
+    return fmt(value,1," "+units[index]+("/s" if rate else ""))
+
+
+def firmware_label(flags):
+    if type(flags) is not int:
+        return "Napájení: neznámé", AMBER
+    return ("Napájení: PODPĚTÍ", RED) if flags & 1 else ("Napájení: bez podpětí", GREEN)
+
+
+def firmware_history(flags):
+    if type(flags) is not int:
+        return "Firmware: údaje nedostupné"
+    labels = [name for bit,name in ((16,"podpětí"),(17,"omezení frekvence"),(18,"throttling"),(19,"teplotní limit")) if flags & (1<<bit)]
+    return "Dříve: "+", ".join(labels) if labels else "Dřívější problémy: žádné hlášené"
+
+
+def system_page(c, model):
+    system, services, iot = model.get("system") or {}, model.get("services"), model.get("iot")
+    c.card((20,84,504,582),BLUE)
+    c.text((40,104),"Raspberry Pi",22,WHITE,True)
+    c.text((484,108),"Uptime "+str(system.get("uptime","—")),16,MUTED,anchor="ra")
+    stat(c,40,146,"CPU",fmt(system.get("cpu"),0," %"),26,width=206)
+    stat(c,266,146,"RAM",fmt(system.get("ram"),0," %"),26,width=218)
+    stat(c,40,215,"Volné místo /",byte_label(system.get("disk_free")),26,
+         color=AMBER if any("disku" in w for w in warnings(model)) else WHITE,width=206)
+    stat(c,266,215,"Teplota CPU",fmt(system.get("temp"),1," °C"),26,
+         color=RED if number(system.get("temp")) is not None and system["temp"]>=80 else WHITE,width=218)
+    c.draw.line((40,279,484,279),fill=BORDER)
+    link = system.get("link")
+    c.text((40,295),"Síť · "+str(system.get("iface","—")),18,WHITE,True,width=318)
+    c.text((484,295),"UP" if link is True else "DOWN" if link is False else "—",18,
+           GREEN if link else AMBER,True,anchor="ra")
+    c.text((40,323),system.get("ip") or "Bez IPv4 adresy",20,WHITE,True,width=444)
+    stat(c,40,361,"Příjem",byte_label(system.get("rx_rate"),True),21,width=206)
+    stat(c,266,361,"Odesílání",byte_label(system.get("tx_rate"),True),21,width=218)
+    stat(c,40,423,"Přijato celkem",byte_label(system.get("rx_bytes")),20,width=206)
+    stat(c,266,423,"Odesláno celkem",byte_label(system.get("tx_bytes")),20,width=218)
+    label,color = firmware_label(system.get("flags"))
+    c.text((40,491),label,18,color,True,width=444)
+    history = firmware_history(system.get("flags"))
+    # Wrap the finite firmware history without hiding a second reported fault.
+    words, lines, line = history.split(), [], ""
+    for word in words:
+        candidate = (line+" "+word).strip()
+        if c.draw.textlength(candidate,font=font(16,False,c.font_path))>444:
+            lines.append(line)
+            line = word
+        else:
+            line = candidate
+    for i,line in enumerate(lines+[line]):
+        c.text((40,526+i*21),line,16,MUTED,width=444)
+    c.card((520,84,1004,582))
+    count = f"{services['online']}/{services['total']} dostupných" if services else "Stav nedostupný"
+    c.text((540,105),"Služby HanzHub",22,WHITE,True)
+    c.text((984,110),count,16,GREEN if services and services["online"]==services["total"] else AMBER,anchor="ra")
+    c.text((540,143),"Monitorovaná IoT: "+(f"{iot['online']}/{iot['total']} online" if iot else "stav neznámý"),17,WHITE,True,width=444)
+    items = services.get("items",[]) if services else []
+    pages = max(1,(len(items)+7)//8)
+    page = min(max(0,model.get("services_page",0)),pages-1)
+    for i,item in enumerate(items[page*8:(page+1)*8]):
+        y = 183+i*27
+        c.text((540,y),item["name"],18,WHITE,width=330)
+        c.text((984,y),"Online" if item["online"] else "Offline",17,GREEN if item["online"] else AMBER,True,anchor="ra")
+    if not items:
+        c.text((540,189),"Čekám na přehled služeb" if not services else "Žádné služby",18,MUTED,width=444)
+    if pages>1:
+        c.button((540,410,656,470),"←",("services_page",page-1),active=page>0,size=24)
+        c.text((762,440),f"{page+1}/{pages}",18,MUTED,anchor="mm")
+        c.button((868,410,984,470),"→",("services_page",page+1),active=page<pages-1,size=24)
+    alerts = warnings(model)
+    if alerts:
+        for i,alert in enumerate(alerts):
+            c.text((540,484+i*18),"! "+alert,16,AMBER if alert.startswith("Meteo:") else RED,True,width=444)
+    else:
+        c.text((540,514),"Žádné zjištěné varování",18,MUTED,width=444)
+    if not system:
+        c.text((540,553),"Systémové údaje nedostupné",16,AMBER,width=444)
+
+
 def render_landscape(page, model, window, timer_dialog, size, font_path):
     c = Canvas(font_path,SIZE)
     now = model.get("now") or datetime.now()
@@ -202,11 +304,10 @@ def render_landscape(page, model, window, timer_dialog, size, font_path):
     if page!="home" and message:
         c.text((220,54),message,16,AMBER,width=784)
     {"home":overview,"meteo":lambda canvas,data:weather_page(canvas,data,window),
-     "heater":heater_page,"plug":lambda canvas,data:plug_page(canvas,data,window)}.get(page,overview)(c,model)
+     "heater":heater_page,"plug":lambda canvas,data:plug_page(canvas,data,window),
+     "system":system_page}.get(page,overview)(c,model)
     if page=="home":
         system_summary(c,model)
-        if message:
-            c.text((20,117),message,16,AMBER,width=984)
     if timer_dialog:
         timer_modal(c,model)
         c.icon("home",35,30,GREEN)

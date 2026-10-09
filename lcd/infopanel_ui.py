@@ -18,7 +18,7 @@ RED = (255, 100, 108)
 AMBER = (255, 173, 65)
 BLUE = (75, 194, 255)
 PAGES = ("home", "meteo", "heater", "plug")
-TITLES = {"home": "HanzHub", "meteo": "Meteo", "heater": "Infrapanel", "plug": "Zásuvka"}
+TITLES = {"home": "HanzHub", "meteo": "Meteo", "heater": "Infrapanel", "plug": "Zásuvka", "system": "Raspberry"}
 
 
 def number(value):
@@ -211,7 +211,33 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
     p_active = usable(plug) and not model.get("busy")
     ht = heater if usable(heater) and heater["power"] else {}
 
-    if page == "home":
+    if page == "system":
+        from infopanel_landscape import byte_label, firmware_label
+        from infopanel_system import warnings
+        c.text((12,8),"HanzHub",22,GREEN,True)
+        c.hits.append(Hit((8,0,144,50),("page","home")))
+        c.card((8,58,312,249),BLUE)
+        c.text((20,70),"Raspberry Pi · "+str(system.get("uptime","—")),16,WHITE,True,width=280)
+        c.text((20,100),"CPU "+fmt(system.get("cpu"),0," %")+" · RAM "+fmt(system.get("ram"),0," %"),14,WHITE,width=280)
+        c.text((20,124),"Volno "+byte_label(system.get("disk_free"))+" · "+fmt(system.get("temp"),1," °C"),14,WHITE,width=280)
+        c.text((20,148),str(system.get("iface","—"))+" · "+str(system.get("ip") or "Bez sítě"),14,WHITE,width=280)
+        c.text((20,172),"RX "+byte_label(system.get("rx_rate"),True)+" · TX "+byte_label(system.get("tx_rate"),True),13,WHITE,width=280)
+        label,color = firmware_label(system.get("flags"))
+        c.text((20,196),label,14,color,width=280)
+        c.text((20,222),"! "+" · ".join(warnings(model)) if warnings(model) else "Žádné zjištěné varování",12,AMBER,width=280)
+        services = model.get("services")
+        items = services.get("items",[]) if services else []
+        pages = max(1,(len(items)+3)//4)
+        section = min(model.get("services_page",0),pages-1)
+        c.text((12,258),"Služby "+(f"{services['online']}/{services['total']}" if services else "—"),16,WHITE,True)
+        for i,item in enumerate(items[section*4:(section+1)*4]):
+            c.text((12,285+i*20),item["name"],13,WHITE,width=216)
+            c.text((308,285+i*20),"Online" if item["online"] else "Offline",13,GREEN if item["online"] else AMBER,anchor="ra")
+        if pages>1:
+            c.button((8,369,104,415),"←",("services_page",section-1),active=section>0)
+            c.text((160,391),f"{section+1}/{pages}",13,MUTED,anchor="mm")
+            c.button((216,369,312,415),"→",("services_page",section+1),active=section<pages-1)
+    elif page == "home":
         c.card((8,58,312,146), BLUE, ("page","meteo"))
         c.icon("meteo",29,76,BLUE)
         c.text((47,65), "Meteo", 15, WHITE, True)
@@ -237,6 +263,7 @@ def render(page, model, window=24, timer_dialog=False, size=(320,480), font_path
         c.text((12,385), "Raspberry Pi", 11, MUTED)
         c.text((308,382), "CPU "+fmt(system.get("cpu"),0," %")+" · "+fmt(system.get("temp"),1," °C"), 12, WHITE, anchor="ra")
         c.text((12,402), "RAM "+fmt(system.get("ram"),0," %")+" · disk "+fmt(system.get("disk"),0," %")+" · "+str(system.get("uptime","—")), 10, MUTED, width=296)
+        c.hits.append(Hit((8,375,312,419),("page","system")))
     elif page == "meteo":
         c.card((8,58,312,140),BLUE)
         c.text((20,66), "Aktuální teplota" if not meteo.get("stale") else "Poslední teplota", 12, MUTED)

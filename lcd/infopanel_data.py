@@ -54,7 +54,8 @@ class ServiceHealth:
                 for row in rows.values()
             ):
                 raise ValueError("Neplatný health přehled")
-            value = {"online":sum(row["ok"] for row in rows.values()), "total":len(rows)}
+            value = {"online":sum(row["ok"] for row in rows.values()), "total":len(rows),
+                     "items":[{"name":str(key), "online":row["ok"]} for key,row in rows.items()]}
         except (OSError, ValueError, TypeError):
             value = None
         with self.lock:
@@ -152,6 +153,7 @@ class InfoData:
         self.states = {}
         self.generation = {"heater":0,"plug":0}
         self.modules = {}
+        self.registry_checked = None
         self.selected = {"heater":panel_id,"plug":plug_id}
         self.selection_file = self.directory/"selection.json"
         try:
@@ -179,13 +181,21 @@ class InfoData:
         return data
 
     def refresh_registry(self):
-        payload = self.transport("/devices")
-        rows = payload.get("devices")
-        if not isinstance(rows,list):
-            raise ValueError("Neplatný seznam modulů")
-        rows = [row for row in rows if isinstance(row,dict) and re.fullmatch(r"[a-f0-9]{12}",str(row.get("id","")))]
+        try:
+            payload = self.transport("/devices")
+            rows = payload.get("devices") if isinstance(payload,dict) else None
+            if not isinstance(rows,list) or any(
+                not isinstance(row,dict) or not re.fullmatch(r"[a-f0-9]{12}",str(row.get("id",""))) or
+                type(row.get("enabled")) is not bool for row in rows
+            ) or len({row["id"] for row in rows})!=len(rows):
+                raise ValueError("Neplatný seznam modulů")
+        except (OSError,ValueError,TypeError):
+            with self.lock:
+                self.registry_checked = None
+            raise
         with self.lock:
             self.modules = {row["id"]:{key:row.get(key) for key in ("id","name","room","driver","enabled")} for row in rows}
+            self.registry_checked = time.monotonic()
             changed = False
             for role,driver in (("heater","bot_iph2"),("plug","tapo_p110m")):
                 candidates = [row for row in rows if row.get("driver")==driver]
@@ -235,7 +245,8 @@ class InfoData:
                 try:
                     self.refresh_registry()
                 except (OSError,ValueError,TypeError,sqlite3.Error):
-                    pass
+                    with self.lock:
+                        self.registry_checked = None
                 self.stop.wait(30)
         def device(role):
             while not self.stop.is_set():
@@ -264,6 +275,13 @@ class InfoData:
                 result[role+"_name"] = module.get("name") or {"heater":"Infrapanel","plug":"Zásuvka"}[role]
                 result[role+"_room"] = module.get("room") or ""
                 result[role+"_id"] = self.selected[role]
+            # Selected modules monitored by the LCD; OFF still counts as online.
+            roles = [role for role in ("heater","plug")
+                     if self.modules.get(self.selected[role],{}).get("enabled") is True and
+                     self.modules[self.selected[role]].get("driver")=={"heater":"bot_iph2","plug":"tapo_p110m"}[role]]
+            result["iot"] = ({"online":sum(bool(result[role] and result[role].get("online") is True) for role in roles),
+                              "total":len(roles)} if self.registry_checked is not None and
+                             time.monotonic()-self.registry_checked < 90 else None)
             return result
 
     def submit(self, role, control, value, expected_module_id=None):

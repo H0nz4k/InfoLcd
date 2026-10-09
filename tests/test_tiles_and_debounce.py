@@ -100,7 +100,7 @@ class TileNavigationTests(unittest.TestCase):
         model = demo_model()
         model["home_tiles"] = ["plug","meteo"]
         _,hits = render("home",model,size=(1024,600))
-        self.assertEqual([h.action for h in hits if h.action[0]=="page"],[("page","home"),("page","plug"),("page","meteo")])
+        self.assertEqual([h.action for h in hits if h.action[0]=="page"],[("page","home"),("page","plug"),("page","meteo"),("page","system")])
         self.assertEqual(validate_settings({"home_tiles":["plug"]})["home_tiles"],["plug"])
         for bad in ([],["other"],["heater","heater"],"meteo",[None]):
             with self.assertRaises(ValueError):
@@ -123,7 +123,7 @@ class ServiceCountTests(unittest.TestCase):
         health = ServiceHealth("http://127.0.0.1:4010/api/health",lambda:rows)
         with patch("infopanel_data.time.monotonic",return_value=100):
             health.poll()
-            self.assertEqual(health.snapshot(),{"online":2,"total":3})
+            self.assertEqual(health.snapshot(),{"online":2,"total":3,"items":[{"name":key,"online":row["ok"]} for key,row in rows.items()]})
         with patch("infopanel_data.time.monotonic",return_value=191):
             self.assertIsNone(health.snapshot())
         for invalid in ({"x":{"ok":"yes"}},[],None):

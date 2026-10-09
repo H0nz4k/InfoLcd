@@ -18,7 +18,7 @@ APP = Path("/opt/hanzhub-infopanel")
 CONFIG = Path("/etc/hanzhub-infopanel.json")
 UNIT = Path("/etc/systemd/system/infopanel.service")
 DATA = Path("/var/lib/hanzhub-infopanel")
-RUNTIME_FILES = ("infopanel.py","infopanel_ui.py","infopanel_landscape.py","infopanel_data.py","infopanel_touch.py","lcd_info.py","infrapanel_widget.py")
+RUNTIME_FILES = ("infopanel.py","infopanel_ui.py","infopanel_landscape.py","infopanel_data.py","infopanel_system.py","infopanel_touch.py","lcd_info.py","infrapanel_widget.py")
 
 
 def run(command, check=True):
