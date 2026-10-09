@@ -109,7 +109,8 @@ class SystemReadingTests(unittest.TestCase):
 
 
 class IoTCountTests(unittest.TestCase):
-    def test_selected_off_is_online_disabled_and_removed_are_excluded(self):
+    @patch("infopanel_data.time.monotonic",return_value=1000)
+    def test_selected_off_is_online_disabled_and_removed_are_excluded(self, _clock):
         rows = [{"id":"123456abcdef","driver":"bot_iph2","enabled":True},
                 {"id":"abcdef123456","driver":"tapo_p110m","enabled":True},
                 {"id":"112233445566","driver":"other","enabled":True}]
