@@ -53,7 +53,7 @@ def landscape_previews(output):
         x,y = 10+(i%2)*532,38+(i//2)*340
         composite.paste(image.resize((512,300),Image.Resampling.LANCZOS),(x,y))
         draw.text((x+256,y-20),"Přehled" if page=="home" else TITLES[page],font=font(16,True),fill=MUTED,anchor="mm")
-    draw.text((532,708),"HanzHub · Infopanel v2.1 · ukázková data · obrazovky 1024 × 600",font=font(13),fill=MUTED,anchor="mm")
+    draw.text((532,708),"HanzHub · Infopanel v2.1.1 · ukázková data · obrazovky 1024 × 600",font=font(13),fill=MUTED,anchor="mm")
     composite.save(output/"infopanel-landscape.png")
     model = demo_model()
     model.update(heater={"online":False},plug={"online":False},meteo={})

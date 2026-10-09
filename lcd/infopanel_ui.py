@@ -143,7 +143,7 @@ class Canvas:
         points.sort()
         if len(points) < 2 or points[0][0] == points[-1][0]:
             self.text(((x0+x1)/2,(y0+y1)/2-8), "Zatím málo dat", 17, MUTED, anchor="mm")
-            self.text(((x0+x1)/2,(y0+y1)/2+16), "Graf se doplní při načítání", 11, MUTED, anchor="mm")
+            self.text(((x0+x1)/2,(y0+y1)/2+16), "Graf se doplní při načítání", max(11,label_size), MUTED, anchor="mm", width=x1-x0-8)
             return
         values = [v for _,v in points]
         low, high = min(values), max(values)
